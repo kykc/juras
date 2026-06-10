@@ -1,0 +1,41 @@
+# Built application files & build output
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+/build
+/app/build
+**/build/
+bin/
+gen/
+out/
+
+# Gradle
+.gradle/
+.kotlin/
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores & signing (never commit secrets)
+*.jks
+*.keystore
+
+# NDK
+obj/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+Thumbs.db
+
+# Keep the Gradle wrapper jar tracked (do not ignore it):
+!gradle/wrapper/gradle-wrapper.jar
