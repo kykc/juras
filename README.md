@@ -67,7 +67,7 @@ The built APK lands in `app/build/outputs/apk/debug/`.
 ## Project structure
 
 ```
-app/src/main/java/audio/gpu/juras/   App code (entry point + UI theme)
+app/src/main/java/automatl/juras/    App code (entry point + UI theme)
 app/src/main/res/                     Resources (strings, icons, themes)
 gradle/libs.versions.toml             Dependency versions (version catalog)
 ```

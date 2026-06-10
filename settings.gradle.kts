@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Juras"
 include(":app")
+include(":protocol")

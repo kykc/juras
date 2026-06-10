@@ -31,7 +31,7 @@ current state — do not assume features exist; check the code.
 | compileSdk / targetSdk | 36 |
 | minSdk | 26 |
 | JVM bytecode target | 11 |
-| Package / applicationId | `audio.gpu.juras` |
+| Package / applicationId | `automatl.juras` |
 
 Versions are centralized in [`gradle/libs.versions.toml`](gradle/libs.versions.toml).
 Prefer adding dependencies there (the catalog) rather than inline in
@@ -93,7 +93,7 @@ juras/
     ├── proguard-rules.pro
     └── src/main/
         ├── AndroidManifest.xml
-        ├── java/audio/gpu/juras/
+        ├── java/automatl/juras/
         │   ├── MainActivity.kt    # entry point (currently a Compose stub)
         │   └── ui/theme/          # Color.kt, Type.kt, Theme.kt (Material 3)
         └── res/
@@ -103,7 +103,7 @@ juras/
 ```
 
 When the networking/protocol layer is added, keep it separate from UI — e.g. a
-`audio.gpu.juras.jura` package for transport/cipher/commands, with Compose UI
+`automatl.juras.jura` package for transport/cipher/commands, with Compose UI
 consuming it via a ViewModel.
 
 ---
@@ -177,7 +177,7 @@ Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 | `@TG:C0` | Maintenance status: 3 bytes (cleaning, filter, descale) as % to service; `FF` = n/a. |
 | `@TG:43` | Maintenance counters: 6 × 2-byte big-endian cycle counts. |
 | `@TR:32,P` | Product counter page P (4 products × 2 bytes); pages 0–15 cover all. |
-| `@TM:50` | Machine state bitmask (alerts: water, grounds, no beans, heating, ready…). |
+| `@TM:50` | **Subscribe** to status. Machine acks (`@tm:D0`) then **pushes** `@TF:<14 hex>` frames periodically until disconnect. Each push is a 7-byte (56-bit) alert word; bit N = `byte[N/8]`, mask `0x80 >> (N%8)` (per-byte, MSB-first). Decode via the model's XML `<ALERTS>` (EF1030 table lives in `MachineStateDecoder`). Verified: tank out → bit 1 "fill water"; ready → bit 13 "coffee ready". |
 | `@TG:FF` / `@TG:01` | Cancel / advance current product step. |
 | `@TF:02` | Restart machine. |
 
@@ -224,14 +224,57 @@ support a new model, parse its XML rather than hardcoding.
 
 ## 7. Roadmap & status
 
-The build proceeds in steps (tracked in the workspace's `andoid_app.md`):
+The build proceeds in steps (tracked in the workspace's `andoid_app.md`).
+
+### Guiding strategy
+
+**Thin vertical slices, protocol-first within each slice, ordered by risk and
+dependency — not by user-facing flow order.** The protocol layer is a hard
+dependency for everything, so it leads; but we never build the whole protocol or
+the whole UI in isolation. Each slice goes connect → command → parse → display
+and is verified against the real machine (or `../jura.py`) before the next.
+
+Two consequences that are **architectural rules**, not just preferences:
+
+- **Protocol/transport code stays free of Android imports** (pure Kotlin module/
+  package) so it is JVM-unit-testable and cross-checkable against `../jura.py`.
+- **The connection manager is the single stateful owner** of the one allowed TCP
+  session (the machine permits only one connection at a time). Everything else is
+  stateless commands/parsers layered over it.
+
+Build-order ≠ user-flow order: credentials are bootstrapped by hand (reuse a
+token, as `../jura.py` does) so **pairing UI is deferred**; **safe reads come
+before brewing**.
+
+### Steps
 
 - [x] **Step 0** — Project skeleton that compiles in Android Studio and runs an
-  empty APK on an emulator. *(Done — current state: a Compose "Hello" stub.)*
+  empty APK on an emulator.
 - [x] **Step 1** — Project docs: this `CLAUDE.md`, `README.md`, `.gitignore`.
-- [ ] **Later** — Networking/transport layer (cipher, framing, auth), machine
-  discovery, brew/maintenance/counter features, and UI. Build and verify each
-  increment against a real machine (or the Python client) before moving on.
+- [x] **Step 2** — Protocol core as pure Kotlin (cipher + framing), with JVM unit
+  tests against known-good vectors from `../jura.py`. *(Done — `:protocol` module;
+  `JuraCipher`, `JuraFrame`, `KeySelector`; `JuraCipherTest` passes including
+  byte-for-byte golden frames.)*
+- [x] **Step 3** — Transport + connection manager + `@HP:` auth handshake.
+  *(Done — `transport/JuraConnection` owns the single TCP socket; `client/JuraClient`
+  does `authenticate()` → `AuthResult` and session-wrapped reads.)*
+- [x] **Step 4** — First vertical slice: a read flow with minimal UI. *(Done —
+  `JuraClient.readReport()` reads product counters `@TR:32`, maintenance `@TG:C0`/
+  `@TG:43`, and machine state `@TM:50`; `ui/MainScreen` + `MainViewModel` show it,
+  with IP/PIN/device-name/token inputs persisted via `data/JuraSettings`.)*
+  **Current state:** verified on real hardware (Jura E6 / EF1030) — auth, product
+  counters, maintenance status/counters, and machine state all return correct live
+  data. Machine state was corrected: `@TM:50` is a *subscribe* command (the `D0`
+  in `@tm:D0` was a mis-parsed echo); real status arrives in streamed `@TF:` push
+  frames, decoded by `MachineStateDecoder` (tank-out → "fill water", ready →
+  "coffee ready" confirmed, locked in by unit tests).
+- [ ] **Step 5** — **Brewing** (`@TP:`). Headline feature; added after the stack is
+  proven on safe reads because it has physical side effects.
+- [ ] **Step 6** — **Pairing** flow (`@HP:,,` → `@HW:01,PIN`). Real onboarding;
+  deferred until last because it is hardest to test and has been faked until now.
+- [ ] **Step 7** — **Brew preset editor**. Almost pure app-side (local storage +
+  Compose); lowest risk, machine-independent — good as filler / final polish.
 
 When you complete a step, update this checklist and the "current state" note so
 the next session knows where things stand.
+

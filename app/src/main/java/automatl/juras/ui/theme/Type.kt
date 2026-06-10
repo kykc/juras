@@ -1,4 +1,4 @@
-package audio.gpu.juras.ui.theme
+package automatl.juras.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

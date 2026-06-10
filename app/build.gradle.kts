@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "audio.gpu.juras"
+    namespace = "automatl.juras"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "audio.gpu.juras"
+        applicationId = "automatl.juras"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -43,8 +43,12 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":protocol"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
