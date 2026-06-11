@@ -2,6 +2,7 @@ package automatl.juras.protocol.client
 
 import automatl.juras.protocol.JuraCredentials
 import automatl.juras.protocol.transport.JuraConnection
+import java.io.IOException
 import java.net.SocketTimeoutException
 
 /**
@@ -79,12 +80,13 @@ class JuraClient(private val conn: JuraConnection) {
 
     /** Read everything that is safe and idempotent. */
     fun readReport(): MachineReport {
-        // Statistics are simple request/response and are wrapped in a session.
+        // Statistics are simple request/response and are wrapped in a session. Each
+        // sub-read is independently guarded so one hiccup doesn't drop the rest.
         val report = withSession {
             MachineReport(
-                productCounts = readProductCounters(),
-                maintenanceStatus = readMaintenanceStatus(),
-                maintenanceCounters = readMaintenanceCounters(),
+                productCounts = runCatching { readProductCounters() }.getOrDefault(emptyList()),
+                maintenanceStatus = runCatching { readMaintenanceStatus() }.getOrDefault(emptyList()),
+                maintenanceCounters = runCatching { readMaintenanceCounters() }.getOrDefault(emptyList()),
                 machineState = null,
             )
         }
@@ -97,16 +99,32 @@ class JuraClient(private val conn: JuraConnection) {
 
     /** Wrap [block] in a Remote Screen session (`@TS:01` … `@TS:00`). */
     private fun <T> withSession(block: () -> T): T {
-        conn.send("@TS:01")
-        conn.receive()
+        request("@TS:01", "@ts")
         try {
             return block()
         } finally {
-            runCatching {
-                conn.send("@TS:00")
-                conn.receive()
-            }
+            runCatching { request("@TS:00", "@ts") }
         }
+    }
+
+    /**
+     * Send [command] and return the first response frame whose lowercased text
+     * starts with [expectedPrefix].
+     *
+     * The machine interleaves **unsolicited** frames (it spontaneously emits `@TS`
+     * and `@TF:` status frames after auth and on state changes); reading "exactly
+     * one frame" per command therefore desyncs request/response and shifts the
+     * results. Skipping to the matching echo prefix tolerates those, and recovers
+     * from any leftover frames a previous read left behind.
+     */
+    private fun request(command: String, expectedPrefix: String): String {
+        conn.send(command)
+        val want = expectedPrefix.lowercase()
+        repeat(MAX_SKIP_FRAMES) {
+            val resp = conn.receive()
+            if (resp.lowercase().startsWith(want)) return resp
+        }
+        throw IOException("no '$expectedPrefix' response from machine")
     }
 
     // ── product counters (@TR:32) ────────────────────────────────────────────
@@ -114,8 +132,7 @@ class JuraClient(private val conn: JuraConnection) {
     private fun readProductCounters(): List<ProductCount> {
         val combined = StringBuilder(256)
         for (page in 0 until 16) {
-            conn.send("@TR:32,%02X".format(page))
-            val resp = conn.receive()
+            val resp = request("@TR:32,%02X".format(page), "@tr:32")
             val parts = resp.split(",", limit = 3)
             val raw = if (parts.size >= 3) parts[2].trim() else ""
             combined.append((raw + "FFFF".repeat(4)).substring(0, 16))
@@ -135,9 +152,7 @@ class JuraClient(private val conn: JuraConnection) {
     // ── maintenance status (@TG:C0) ──────────────────────────────────────────
 
     private fun readMaintenanceStatus(): List<MaintenanceStatus> {
-        conn.send("@TG:C0")
-        val resp = conn.receive()
-        if (!resp.lowercase().startsWith("@tg:c0")) return emptyList()
+        val resp = request("@TG:C0", "@tg:c0")
         val data = resp.substring(6)
         val out = ArrayList<MaintenanceStatus>()
         for ((i, name) in C0_FIELDS.withIndex()) {
@@ -152,9 +167,7 @@ class JuraClient(private val conn: JuraConnection) {
     // ── maintenance counters (@TG:43) ────────────────────────────────────────
 
     private fun readMaintenanceCounters(): List<MaintenanceCounter> {
-        conn.send("@TG:43")
-        val resp = conn.receive()
-        if (!resp.lowercase().startsWith("@tg:43")) return emptyList()
+        val resp = request("@TG:43", "@tg:43")
         val data = resp.substring(6)
         val out = ArrayList<MaintenanceCounter>()
         for ((i, name) in TG43_FIELDS.withIndex()) {
@@ -209,5 +222,8 @@ class JuraClient(private val conn: JuraConnection) {
 
         /** Max status frames to read before giving up waiting for the first @TF: push. */
         private const val MAX_STATE_FRAMES = 8
+
+        /** Max unsolicited frames to skip while awaiting a specific command's response. */
+        private const val MAX_SKIP_FRAMES = 24
     }
 }

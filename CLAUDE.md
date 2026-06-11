@@ -176,6 +176,15 @@ Most commands must be wrapped in a **Remote Screen** session:
 ```
 Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 
+> **Unsolicited frames / desync (important):** the machine spontaneously emits
+> `@TS` and `@TF:<status>` frames after auth and on state changes — *not only* in
+> response to `@TM:50`. Reading "exactly one frame per command" therefore
+> intermittently mis-pairs responses and shifts results (e.g. product counters land
+> in the wrong slots). `JuraClient.request(cmd, expectedPrefix)` skips frames until
+> the matching echo prefix (`@tr:32`, `@tg:c0`, `@tg:43`, `@ts`), which tolerates the
+> pushes and self-heals leftover frames. Always match responses by prefix, never by
+> position.
+
 ### Key commands
 | Command | Purpose |
 |---|---|
