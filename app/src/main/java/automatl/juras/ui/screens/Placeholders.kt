@@ -13,8 +13,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import automatl.juras.domain.BrewPreset
 
-// Placeholder screens — implemented in later roadmap steps (Brewing = Step 6,
-// Preset editor = Step 7). They exist now so navigation is wired end-to-end.
+// Placeholder screen for Brewing (implemented in Step 8). Exists so navigation is
+// wired end-to-end.
 
 @Composable
 fun BrewingScreen(preset: BrewPreset?, modifier: Modifier = Modifier) {
@@ -24,15 +24,6 @@ fun BrewingScreen(preset: BrewPreset?, modifier: Modifier = Modifier) {
             append(preset?.name ?: "Unknown preset")
             append("\n\nBrewing is implemented in the next step.")
         },
-        modifier = modifier,
-    )
-}
-
-@Composable
-fun PresetEditorScreen(presetId: String?, modifier: Modifier = Modifier) {
-    Placeholder(
-        title = if (presetId == null) "New preset" else "Edit preset",
-        body = "The preset editor is coming in a later step.",
         modifier = modifier,
     )
 }

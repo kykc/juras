@@ -9,6 +9,7 @@ kotlinxCoroutines = "1.9.0"
 kotlinxSerialization = "1.7.3"
 navigationCompose = "2.8.5"
 datastore = "1.1.1"
+reorderable = "2.4.0"
 junit = "4.13.2"
 
 [libraries]
@@ -27,6 +28,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-datastore = { group = "androidx.datastore", name = "datastore", version.ref = "datastore" }
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

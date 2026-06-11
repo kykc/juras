@@ -2,6 +2,7 @@ package automatl.juras.domain
 
 import automatl.juras.protocol.JuraCredentials
 import automatl.juras.protocol.Temperature
+import automatl.juras.protocol.product.Product
 import kotlinx.serialization.Serializable
 
 /** Root persisted application state. One paired machine for now. */
@@ -58,13 +59,24 @@ data class BrewPreset(
     val waterMl: Int,
     val temperature: Temperature,
     val milkMl: Int? = null,
+    val bypassMl: Int? = null,
 )
 
-/** Presets seeded on first run so the app is usable before the editor exists. */
+/**
+ * Seed presets generated on first pairing (clean state): one preset per product
+ * in the machine's catalogue, at the product's factory defaults.
+ */
 object DefaultPresets {
-    val list: List<BrewPreset> = listOf(
-        BrewPreset("seed-espresso", "Espresso", 0x02, 8, 45, Temperature.HIGH),
-        BrewPreset("seed-coffee", "Coffee", 0x03, 5, 100, Temperature.NORMAL),
-        BrewPreset("seed-cappuccino", "Cappuccino", 0x04, 8, 60, Temperature.NORMAL, milkMl = 12),
-    )
+    fun forProducts(products: List<Product>): List<BrewPreset> = products.map { product ->
+        BrewPreset(
+            id = "seed-%02X".format(product.code),
+            name = product.name,
+            productCode = product.code,
+            strength = product.strength?.default ?: 0,
+            waterMl = product.water?.default ?: 0,
+            temperature = product.defaultTemperature ?: Temperature.NORMAL,
+            milkMl = product.milk?.default,
+            bypassMl = product.bypass?.default,
+        )
+    }
 }

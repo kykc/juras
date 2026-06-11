@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -18,7 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -36,14 +35,21 @@ import automatl.juras.ui.screens.BrewingScreen
 import automatl.juras.ui.screens.PairingScreen
 import automatl.juras.ui.screens.PresetEditorScreen
 import automatl.juras.ui.screens.SettingsScreen
+import automatl.juras.R
 import automatl.juras.ui.screens.StatusScreen
 
-private data class TabItem(val route: Route, val label: String, val icon: ImageVector)
+private data class TabItem(val route: Route, val label: String, val icon: @Composable () -> Unit)
 
 private val TABS = listOf(
-    TabItem(Route.Brew, "Brew", Icons.Filled.Home),
-    TabItem(Route.Status, "Status", Icons.Filled.Info),
-    TabItem(Route.Settings, "Settings", Icons.Filled.Settings),
+    TabItem(Route.Brew, "Brew") {
+        Icon(painterResource(R.drawable.ic_coffee), contentDescription = null)
+    },
+    TabItem(Route.Status, "Status") {
+        Icon(Icons.Filled.Info, contentDescription = null)
+    },
+    TabItem(Route.Settings, "Settings") {
+        Icon(Icons.Filled.Settings, contentDescription = null)
+    },
 )
 
 @Composable
@@ -82,7 +88,9 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                 BrewScreen(
                     state = state,
                     onBrew = { preset -> navController.navigate(Route.Brewing(preset.id)) },
+                    onEdit = { preset -> navController.navigate(Route.PresetEditor(preset.id)) },
                     onAddPreset = { navController.navigate(Route.PresetEditor()) },
+                    onReorder = { presets -> appViewModel.reorderPresets(presets) },
                 )
             }
             composable<Route.Status> {
@@ -96,19 +104,36 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                         appViewModel.unpair()
                         navController.navigate(Route.Pairing) { popUpTo(0) }
                     },
+                    onRename = { name ->
+                        state.pairedDevice?.let {
+                            appViewModel.savePairedDevice(it.copy(machineName = name))
+                        }
+                    },
                 )
             }
             composable<Route.Pairing> {
                 PairingScreen(
                     existing = state.pairedDevice,
                     onSaved = { device ->
-                        appViewModel.savePairedDevice(device)
+                        appViewModel.pairDevice(device)
                         navController.navigate(Route.Brew) { popUpTo(0) }
                     },
                 )
             }
             composable<Route.PresetEditor> { backStack ->
-                PresetEditorScreen(presetId = backStack.toRoute<Route.PresetEditor>().presetId)
+                val presetId = backStack.toRoute<Route.PresetEditor>().presetId
+                PresetEditorScreen(
+                    preset = presetId?.let { id -> state.presets.firstOrNull { it.id == id } },
+                    onSave = { preset ->
+                        appViewModel.upsertPreset(preset)
+                        navController.popBackStack()
+                    },
+                    onDelete = { id ->
+                        appViewModel.deletePreset(id)
+                        navController.popBackStack()
+                    },
+                    onCancel = { navController.popBackStack() },
+                )
             }
             composable<Route.Brewing> { backStack ->
                 val presetId = backStack.toRoute<Route.Brewing>().presetId
@@ -131,7 +156,7 @@ private fun JurasBottomBar(navController: NavController, currentDestination: Nav
                         restoreState = true
                     }
                 },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                icon = tab.icon,
                 label = { Text(tab.label) },
             )
         }

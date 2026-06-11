@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import automatl.juras.data.AppStateRepository
 import automatl.juras.domain.AppState
 import automatl.juras.domain.BrewPreset
+import automatl.juras.domain.DefaultPresets
 import automatl.juras.domain.PairedDevice
+import automatl.juras.protocol.product.Ef1030Catalog
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -25,6 +27,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val state: StateFlow<AppState?> = repository.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** Pair a device and seed default presets if none exist yet (clean-state OOBE). */
+    fun pairDevice(device: PairedDevice) {
+        viewModelScope.launch {
+            repository.pairDevice(device, DefaultPresets.forProducts(Ef1030Catalog.products))
+        }
+    }
+
     fun savePairedDevice(device: PairedDevice) {
         viewModelScope.launch { repository.setPairedDevice(device) }
     }
@@ -39,5 +48,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deletePreset(id: String) {
         viewModelScope.launch { repository.deletePreset(id) }
+    }
+
+    fun reorderPresets(presets: List<BrewPreset>) {
+        viewModelScope.launch { repository.setPresets(presets) }
     }
 }

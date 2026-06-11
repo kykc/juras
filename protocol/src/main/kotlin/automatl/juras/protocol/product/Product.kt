@@ -2,34 +2,38 @@ package automatl.juras.protocol.product
 
 import automatl.juras.protocol.Temperature
 
-/** Whether a product involves coffee, milk, both, or just water. */
+/** Whether a product involves coffee, milk, both, or just water/tea. */
 enum class ProductKind { COFFEE, MILK, COFFEE_MILK, WATER }
 
+/** An adjustable integer parameter: factory [default], constrained to [min]..[max] in [step] increments. */
+data class Range(val default: Int, val min: Int, val max: Int, val step: Int)
+
 /**
- * A brewable product definition — the per-model reference data that bounds a brew
- * (valid ranges, defaults, which parameters apply). Mirrors the `<PRODUCT>`
- * entries in the machine XML and `PRODUCTS` in `../jura.py`.
+ * A brewable product definition — per-model reference data that bounds a brew.
+ * Mirrors a `<PRODUCT>` entry in the machine XML. Each adjustable parameter is
+ * present only if the product actually supports it (a `null` [Range]/temperature
+ * means "not adjustable for this product"), so e.g. 2 Espressi has no strength and
+ * Milk Foam has only a milk amount.
  *
- * This is **reference data**, not user state: a saved preset references a product
- * by [code] and stores the chosen values.
+ * Parameters map to `@TP:` payload arguments: strength=F3, water=F4, milk=F6,
+ * temperature=F7, bypass=F10.
+ *
+ * Reference data, not user state — a saved preset references a product by [code]
+ * and stores the chosen values.
  */
 data class Product(
     val code: Int,
     val name: String,
     val kind: ProductKind,
-    val defaultStrength: Int,
-    val strengthMin: Int,
-    val strengthMax: Int,
-    val defaultWaterMl: Int,
-    val waterMinMl: Int,
-    val waterMaxMl: Int,
-    val waterStepMl: Int,
-    val defaultTemperature: Temperature,
-    val defaultMilkMl: Int? = null,
+    val strength: Range? = null,
+    val water: Range? = null,
+    val milk: Range? = null,
+    val bypass: Range? = null,
+    val defaultTemperature: Temperature? = null,
 ) {
-    /** Coffee-bearing products accept a strength setting. */
-    val hasStrength: Boolean get() = kind == ProductKind.COFFEE || kind == ProductKind.COFFEE_MILK
-
-    /** Milk products accept a milk-foam amount. */
-    val hasMilk: Boolean get() = kind == ProductKind.MILK || kind == ProductKind.COFFEE_MILK
+    val hasStrength: Boolean get() = strength != null
+    val hasWater: Boolean get() = water != null
+    val hasMilk: Boolean get() = milk != null
+    val hasBypass: Boolean get() = bypass != null
+    val hasTemperature: Boolean get() = defaultTemperature != null
 }

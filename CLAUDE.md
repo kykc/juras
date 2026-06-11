@@ -189,11 +189,15 @@ Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 
 ### Product codes (EF1030 / E6)
 `02` Espresso · `03` Coffee · `04` Cappuccino · `06` Espresso Macchiato ·
-`08` Milk Foam · `0D` Hot Water · `0F` Powder · `28` Café Barista ·
+`08` Milk Foam · `0D` Hot Water · `0F` Powder (inactive) · `28` Caffé Barista ·
 `29` Barista Lungo · `31` 2 Espressi · `36` 2 Coffee.
-Water amounts must be multiples of 5 ml. Per-product defaults/ranges are in the
-machine XML (`assets/documents/xml/EF1030/1.4.xml` inside the J.O.E. APK) and
-summarized in `../JURA_WIFI_PROTOCOL.md` §7.
+Water amounts must be multiples of 5 ml. **The in-code source of truth is
+`:protocol`'s `product/Ef1030Catalog`, derived from protocol reverse engineering** — trust it over `../JURA_WIFI_PROTOCOL.md`
+§7, which has errors (it wrongly tags Caffé Barista / Barista Lungo as milk drinks;
+they are **coffee + a bypass-water stream `F10`**, no milk). Which parameters each
+product even has varies: 2 Espressi / 2 Coffee have **no strength**; Milk Foam has
+**only** a milk amount (no water/temp/strength); Caffé Barista / Barista Lungo add
+**bypass**. Each adjustable parameter is a nullable `Range` on `Product`.
 
 ### Model portability
 The cipher, framing, auth, and command set are **identical across all J.O.E.-
@@ -279,7 +283,10 @@ before brewing**.
   shell** (*Brew* / *Status* / *Settings*); *Preset editor*, *Brewing*, *Pairing* are
   full-screen pushes. Startup gate → Pairing if no device. State persists in
   **DataStore** as JSON via `data/AppStateRepository` over `domain/AppState`
-  (`PairedDevice`, `BrewPreset`, seeded `DefaultPresets`); `JuraSettings` removed.
+  (`PairedDevice`, `BrewPreset`); `JuraSettings` removed. **OOBE:** default state has
+  no presets; on first pairing (clean state) `DefaultPresets.forProducts` seeds one
+  preset per catalogue product at factory defaults (via `AppViewModel.pairDevice` →
+  `AppStateRepository.pairDevice`, which only seeds when presets are empty).
   `AppViewModel` (shared) owns state + mutations; `StatusViewModel` runs the read
   flow. Read flow moved to `screens/StatusScreen`; `screens/BrewScreen` lists
   presets; `screens/PairingScreen` is manual token entry (real pairing = Step 6).
@@ -311,9 +318,13 @@ before brewing**.
   end-to-end on hardware.** `PairedDevice` distinguishes `label` (this phone's name,
   sent in `@HP` + shown on the machine prompt) from `machineName` (the machine's
   discovered name, for display via `displayName`).
-- [ ] **Step 7** — **Brew preset editor**. Create/edit/delete presets, with inputs
-  bounded by the model's product catalogue (`Ef1030Catalog`). Almost pure app-side
-  (`upsertPreset`/`deletePreset` already exist on the repository).
+- [x] **Step 7** — **Brew preset editor**. *(Done; builds, not yet hardware-tested —
+  it's pure app-side so no machine needed.)* `screens/PresetEditorScreen`: label +
+  product dropdown + strength/water/milk sliders (bounded by `Ef1030Catalog`,
+  strength/milk shown only when the product supports them) + temperature chips;
+  Save/Delete/Cancel via `AppViewModel.upsertPreset`/`deletePreset`. Brew cards now
+  separate **edit** (tap or long-press the card) from **brew** (distinct "Brew"
+  button) to avoid mis-taps; `+` FAB adds a new preset.
 - [ ] **Step 8** — **Brewing** (`@TP:`). Last, because it has physical side effects.
   Payload builder in `:protocol` (port `build_tp_payload` from `../jura.py`,
   unit-tested), brew a preset, and a *Brewing* screen showing streamed `@tp:`/`@tv:`
@@ -332,8 +343,14 @@ before brewing**.
   `:protocol`** — hardcode `Ef1030Catalog` now (from `../jura.py` PRODUCTS / the
   EF1030 XML), parse from machine XML later. `Temperature` (LOW/NORMAL/HIGH →
   wire 0/1/2) lives in `:protocol`; presets/state live in `:app`.
-- New deps when implementing: `navigation-compose`, `kotlinx-serialization`
-  (plugin + json), `datastore`.
+- Deps added along the way: `navigation-compose`, `kotlinx-serialization`
+  (plugin + json), `datastore`, `sh.calvin.reorderable` (drag-to-reorder presets).
+- Brew list (`screens/BrewScreen`) is a reorderable `LazyColumn`: each card has a
+  **drag handle** (`longPressDraggableHandle` — hold to reorder so scrolling past it
+  doesn't accidentally trigger it; persisted via `AppViewModel.reorderPresets`),
+  **body tap/long-press** (edit), and a **Brew** button — three distinct actions.
+  Local order state is synced from the persisted flow via `LaunchedEffect` and
+  committed on drag stop.
 
 When you complete a step, update this checklist and the "current state" note so
 the next session knows where things stand.
