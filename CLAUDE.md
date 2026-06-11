@@ -339,6 +339,13 @@ before brewing**.
   mis-doses, capture a JOE brew pcap (like pairing) to confirm the exact field
   layout/length. Bypass placement (F10) and units (÷5) are unverified — test a
   barista product specifically.
+  **Brew progress captions:** the `@tv:` state byte (byte 0) maps to names in
+  `BrewStateNames`, derived from protocol reverse engineering on EF1030 hardware
+  (`0x24` is "Coffee ready", `0x3E` is "Enjoy"; the reference client had these wrong). Active **dispensing**
+  is not a caption — it's the product's `ProgressAdjust` value
+  (`DISPENSING_STATES = {0x34,0x37,0x3C,0x41}`), which triggers the live ml/percent
+  progress (so it now works for hot water/milk too, not just espresso). Confirmed on
+  hardware: brewing works; `0x21`→"Heating up", `0x40`→"Fill water tank".
 
 ### Architecture decisions (UI + state)
 

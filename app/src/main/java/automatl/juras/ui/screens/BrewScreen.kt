@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -69,6 +70,9 @@ fun BrewScreen(
 
     Scaffold(
         modifier = modifier,
+        // The outer Scaffold (JurasApp) already applies system-bar + nav-bar insets;
+        // zero this nested one's insets so they aren't added twice.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             FloatingActionButton(onClick = onAddPreset) {
                 Icon(Icons.Filled.Add, contentDescription = "Add preset")
@@ -80,7 +84,8 @@ fun BrewScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+            // Extra bottom padding so the last card can scroll clear of the FAB.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "header") {

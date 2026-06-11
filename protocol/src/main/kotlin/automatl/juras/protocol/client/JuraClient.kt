@@ -70,10 +70,10 @@ class JuraClient(private val conn: JuraConnection) {
         val hex = (clean + "F".repeat(32)).substring(0, 32)
         val b = IntArray(16) { hex.substring(it * 2, it * 2 + 2).toInt(16) }
         val state = b[0]
-        return if (state == DISPENSING) {
+        return if (state in BrewStateNames.DISPENSING_STATES) {
             BrewProgress.Dispensing(doneMl = b[4] * 5, totalMl = b[5] * 5, percent = minOf(b[14], 100))
         } else {
-            BrewProgress.Phase(state, BREW_STATES[state] ?: "Working (0x%02X)".format(state))
+            BrewProgress.Phase(state, BrewStateNames.nameFor(state) ?: "State 0x%02X".format(state))
         }
     }
 
@@ -209,14 +209,5 @@ class JuraClient(private val conn: JuraConnection) {
 
         /** Max status frames to read before giving up waiting for the first @TF: push. */
         private const val MAX_STATE_FRAMES = 8
-
-        // Brew progress state byte (@tv: byte 0). See decode_tv in ../jura.py.
-        private const val DISPENSING = 0x3C
-        private val BREW_STATES = mapOf(
-            0x24 to "Warming up",
-            0x39 to "Grinding",
-            0x3C to "Dispensing",
-            0x3E to "Finishing",
-        )
     }
 }
