@@ -2,14 +2,14 @@ package automatl.juras.protocol.client
 
 import automatl.juras.protocol.JuraCredentials
 import automatl.juras.protocol.transport.JuraConnection
+import java.net.SocketTimeoutException
 
 /**
- * High-level, **read-only** operations over an open [JuraConnection].
+ * High-level operations over an open [JuraConnection].
  *
- * Stateless aside from the connection it borrows: every method is a
- * request/response exchange. Parsing logic mirrors the reference client
- * (`../jura.py`) and the protocol reference (`CLAUDE.md` §5). Brewing and other
- * write commands are intentionally not here yet (later roadmap steps).
+ * Stateless aside from the connection it borrows. Reads are request/response;
+ * [brew] streams progress until completion. Parsing mirrors the reference client
+ * (`../jura.py`) and the protocol reference (`CLAUDE.md` §5).
  */
 class JuraClient(private val conn: JuraConnection) {
 
@@ -21,6 +21,59 @@ class JuraClient(private val conn: JuraConnection) {
             resp.startsWith("@hp4:") -> AuthResult.PinRequired(resp.substring(5))
             resp.startsWith("@hp4") -> AuthResult.Authenticated
             else -> AuthResult.Rejected(resp)
+        }
+    }
+
+    /**
+     * Start a product and stream progress until it finishes. Wraps the brew in a
+     * Remote Screen session (`@TS:01` … `@TS:00`) and dispatches `@tb`/`@tv:`
+     * frames to [onProgress]. Blocking — run off the main thread. Use a connection
+     * with a long read timeout (brewing has gaps between frames).
+     *
+     * [payload] is the 32-hex `@TP:` body from [TpPayload]. To stop a brew in
+     * progress, send `@TG:FF` on the same connection from another thread.
+     */
+    fun brew(payload: String, onProgress: (BrewProgress) -> Unit): BrewOutcome {
+        conn.send("@TS:01")
+        conn.receive()
+        try {
+            conn.send("@TP:$payload")
+            while (true) {
+                val resp = try {
+                    conn.receive()
+                } catch (_: SocketTimeoutException) {
+                    return BrewOutcome(completed = true, statusByte = null)
+                }
+                val lower = resp.lowercase()
+                when {
+                    lower.startsWith("@tb") -> onProgress(BrewProgress.Started)
+                    lower.startsWith("@tv:") -> onProgress(decodeBrewState(resp.substring(4)))
+                    lower.startsWith("@tf:") -> {
+                        val status = resp.substring(4).take(2).toIntOrNull(16)
+                        return BrewOutcome(completed = status == 0, statusByte = status)
+                    }
+                    lower.startsWith("@tp:00") -> return BrewOutcome(completed = true, statusByte = 0)
+                    // @tp echo, @ts session signals: ignore and keep reading.
+                }
+            }
+        } finally {
+            runCatching {
+                conn.send("@TS:00")
+                conn.receive()
+            }
+        }
+    }
+
+    /** Decode a `@tv:` progress payload. Mirrors `decode_tv` in `../jura.py`. */
+    private fun decodeBrewState(dataHex: String): BrewProgress {
+        val clean = dataHex.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+        val hex = (clean + "F".repeat(32)).substring(0, 32)
+        val b = IntArray(16) { hex.substring(it * 2, it * 2 + 2).toInt(16) }
+        val state = b[0]
+        return if (state == DISPENSING) {
+            BrewProgress.Dispensing(doneMl = b[4] * 5, totalMl = b[5] * 5, percent = minOf(b[14], 100))
+        } else {
+            BrewProgress.Phase(state, BREW_STATES[state] ?: "Working (0x%02X)".format(state))
         }
     }
 
@@ -156,5 +209,14 @@ class JuraClient(private val conn: JuraConnection) {
 
         /** Max status frames to read before giving up waiting for the first @TF: push. */
         private const val MAX_STATE_FRAMES = 8
+
+        // Brew progress state byte (@tv: byte 0). See decode_tv in ../jura.py.
+        private const val DISPENSING = 0x3C
+        private val BREW_STATES = mapOf(
+            0x24 to "Warming up",
+            0x39 to "Grinding",
+            0x3C to "Dispensing",
+            0x3E to "Finishing",
+        )
     }
 }

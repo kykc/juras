@@ -34,3 +34,16 @@ data class MachineReport(
     val maintenanceCounters: List<MaintenanceCounter>,
     val machineState: MachineState?,
 )
+
+/** Streamed progress during a brew (`@tb`/`@tv:` frames). */
+sealed interface BrewProgress {
+    /** Brewing acknowledged (`@tb`). */
+    data object Started : BrewProgress
+    /** A named phase (warming up, grinding, finishing, …). */
+    data class Phase(val code: Int, val label: String) : BrewProgress
+    /** Dispensing with live water progress. */
+    data class Dispensing(val doneMl: Int, val totalMl: Int, val percent: Int) : BrewProgress
+}
+
+/** Terminal result of a brew. [completed] is true on a clean `@tf:00`/`@tp:00`. */
+data class BrewOutcome(val completed: Boolean, val statusByte: Int?)

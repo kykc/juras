@@ -137,7 +137,11 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
             }
             composable<Route.Brewing> { backStack ->
                 val presetId = backStack.toRoute<Route.Brewing>().presetId
-                BrewingScreen(preset = state.presets.firstOrNull { it.id == presetId })
+                BrewingScreen(
+                    preset = state.presets.firstOrNull { it.id == presetId },
+                    device = state.pairedDevice,
+                    onClose = { navController.popBackStack() },
+                )
             }
         }
     }

@@ -1,0 +1,133 @@
+package automatl.juras.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import automatl.juras.domain.BrewPreset
+import automatl.juras.domain.PairedDevice
+import automatl.juras.protocol.product.Ef1030Catalog
+import automatl.juras.ui.BrewUiState
+import automatl.juras.ui.BrewViewModel
+
+@Composable
+fun BrewingScreen(
+    preset: BrewPreset?,
+    device: PairedDevice?,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: BrewViewModel = viewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (preset == null) {
+            Text("Preset not found", style = MaterialTheme.typography.titleMedium)
+            Button(onClick = onClose) { Text("Back") }
+            return@Column
+        }
+
+        Text(preset.name, style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "${productName(preset)} · ${brewSummary(preset)}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+
+        when (val s = state) {
+            BrewUiState.Idle -> {
+                if (device == null) {
+                    Text("No machine paired.", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text(
+                        "Make sure a cup is in place.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Button(
+                        onClick = { viewModel.start(device, preset) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Start brewing") }
+                }
+                OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cancel")
+                }
+            }
+
+            BrewUiState.Connecting -> {
+                CircularProgressIndicator()
+                Text("Connecting…", style = MaterialTheme.typography.bodyMedium)
+            }
+
+            is BrewUiState.Brewing -> {
+                Text(s.phase, style = MaterialTheme.typography.titleMedium)
+                if (s.percent != null) {
+                    LinearProgressIndicator(
+                        progress = { s.percent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (s.doneMl != null && s.totalMl != null) {
+                        Text(
+                            "${s.doneMl} / ${s.totalMl} ml",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                } else {
+                    CircularProgressIndicator()
+                }
+                OutlinedButton(onClick = { viewModel.stop() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Stop")
+                }
+            }
+
+            is BrewUiState.Done -> {
+                Text(s.message, style = MaterialTheme.typography.titleMedium)
+                Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+            }
+
+            is BrewUiState.Failed -> {
+                Text(
+                    s.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+                Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+            }
+        }
+    }
+}
+
+private fun productName(preset: BrewPreset): String =
+    Ef1030Catalog.byCode(preset.productCode)?.name ?: "Product 0x%02X".format(preset.productCode)
+
+private fun brewSummary(preset: BrewPreset): String {
+    val product = Ef1030Catalog.byCode(preset.productCode)
+    val parts = mutableListOf<String>()
+    if (product == null || product.hasWater) parts += "${preset.waterMl} ml"
+    if (product == null || product.hasStrength) parts += "strength ${preset.strength}"
+    preset.milkMl?.let { parts += "milk $it" }
+    preset.bypassMl?.let { parts += "bypass $it ml" }
+    return parts.joinToString(" · ")
+}

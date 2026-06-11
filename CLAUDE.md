@@ -325,10 +325,20 @@ before brewing**.
   Save/Delete/Cancel via `AppViewModel.upsertPreset`/`deletePreset`. Brew cards now
   separate **edit** (tap or long-press the card) from **brew** (distinct "Brew"
   button) to avoid mis-taps; `+` FAB adds a new preset.
-- [ ] **Step 8** — **Brewing** (`@TP:`). Last, because it has physical side effects.
-  Payload builder in `:protocol` (port `build_tp_payload` from `../jura.py`,
-  unit-tested), brew a preset, and a *Brewing* screen showing streamed `@tp:`/`@tv:`
-  progress. Gate behind a confirm dialog; start with one safe product.
+- [x] **Step 8** — **Brewing** (`@TP:`). *(Implemented; builds + payload unit tests
+  pass. NOT yet hardware-tested — first real dispense.)* `:protocol`: `TpPayload`
+  builds the 32-hex body (strength=F3, water=F4÷5, milk=F6 raw, temp=F7, F9=01,
+  bypass=F10÷5; `TpPayloadTest` matches the §6 golden example); `JuraClient.brew`
+  wraps `@TS:01`/`@TP`/`@TS:00`, streams `@tb`/`@tv:` via `BrewProgress`, ends on
+  `@tf:`/`@tp:00`; stop via `@TG:FF`. `:app`: `BrewViewModel` (connect→auth→brew on
+  IO) + `screens/BrewingScreen` (explicit **Start brewing** confirm → progress bar →
+  **Stop** → Done). Reached by the card **Brew** button.
+  **CAUTION / open question:** the JOE app's decompiled `@TP:` literal is **17
+  bytes** (`@TP:0D00002C…`, 34 hex), but `../jura.py` + protocol §6 use **16 bytes**
+  (32 hex) and that's what's implemented. If a real brew is rejected or
+  mis-doses, capture a JOE brew pcap (like pairing) to confirm the exact field
+  layout/length. Bypass placement (F10) and units (÷5) are unverified — test a
+  barista product specifically.
 
 ### Architecture decisions (UI + state)
 
