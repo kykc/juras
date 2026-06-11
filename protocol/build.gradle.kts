@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Pure-Kotlin/JVM library: the JURA wire protocol (cipher, framing, transport,
@@ -20,6 +21,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
 }
 

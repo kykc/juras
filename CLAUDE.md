@@ -159,9 +159,15 @@ Send `@HP:<b_val>,<hex_d_val>,<a_val>`:
 Responses: `@hp4` (no colon) = accepted, stay open · `@hp4:TOKEN` = PIN challenge ·
 `@hp5:00` = unknown device, machine closes TCP.
 
-Pairing flow: machine in pairing mode → send `@HP:,,` → get `@hp4:TOKEN` (save
-TOKEN as `a_val`) → send `@HW:01,<4-digit-PIN>` → `@hw:01` on success. Easiest
-bootstrap: sniff one J.O.E. session and reuse its token.
+Pairing (subsequent device — confirmed from a JOE pairing packet capture): send
+`@HP:<setupPIN>,<nameHex>,` (empty token) → machine returns `@hp4:<TOKEN>` and
+shows a "pair with this device?" prompt → user confirms on the machine → reconnect
+and send `@HP:<setupPIN>,<nameHex>,<TOKEN>` → `@hp4` (no colon) = paired; store the
+token. There is **no** separate "pairing mode" and **no `@HW`/display-PIN** step on
+this machine; `@HP:,,` just returns `@hp5:00`. (The `@HP:,,` → `@hp4:TOKEN` →
+`@HW:01,PIN` sequence in `JURA_WIFI_PROTOCOL.md` is first-time Wi-Fi init, not
+adding a device.) Easiest bootstrap for testing: reuse a known token via the app's
+Advanced pairing tab.
 
 ### Sessions
 Most commands must be wrapped in a **Remote Screen** session:
@@ -268,12 +274,66 @@ before brewing**.
   in `@tm:D0` was a mis-parsed echo); real status arrives in streamed `@TF:` push
   frames, decoded by `MachineStateDecoder` (tank-out → "fill water", ready →
   "coffee ready" confirmed, locked in by unit tests).
-- [ ] **Step 5** — **Brewing** (`@TP:`). Headline feature; added after the stack is
-  proven on safe reads because it has physical side effects.
-- [ ] **Step 6** — **Pairing** flow (`@HP:,,` → `@HW:01,PIN`). Real onboarding;
-  deferred until last because it is hardest to test and has been faked until now.
-- [ ] **Step 7** — **Brew preset editor**. Almost pure app-side (local storage +
-  Compose); lowest risk, machine-independent — good as filler / final polish.
+- [x] **Step 5** — **App scaffolding: navigation + state.** *(Done.)* Single-Activity
+  **Navigation Compose** (`ui/JurasApp`, type-safe `ui/Routes`) with a **bottom-nav
+  shell** (*Brew* / *Status* / *Settings*); *Preset editor*, *Brewing*, *Pairing* are
+  full-screen pushes. Startup gate → Pairing if no device. State persists in
+  **DataStore** as JSON via `data/AppStateRepository` over `domain/AppState`
+  (`PairedDevice`, `BrewPreset`, seeded `DefaultPresets`); `JuraSettings` removed.
+  `AppViewModel` (shared) owns state + mutations; `StatusViewModel` runs the read
+  flow. Read flow moved to `screens/StatusScreen`; `screens/BrewScreen` lists
+  presets; `screens/PairingScreen` is manual token entry (real pairing = Step 6).
+  Product catalogue + `Temperature` added to `:protocol` (`product/Ef1030Catalog`).
+  Brewing/PresetEditor are placeholders. *(Verified in the emulator: navigation +
+  migrated read flow work.)*
+- [x] **Step 6** — **Pairing** flow + **UDP discovery**. *(Implemented; not yet
+  hardware-tested.)* `:protocol`: `discovery/JuraDiscovery` broadcasts the
+  `0010A5F3…` scan on UDP/51515 and parses replies into `DiscoveredMachine`
+  (derived from protocol analysis; unicast replies, so no extra
+  permission); `JuraClient.submitPairingPin()` sends `@HW:01,<pin>`. `:app`:
+  `PairingViewModel` runs scan + a held-connection handshake (`@HP:,,` →
+  `@hp4:TOKEN`, keep socket open, `@HW:01,<displayPin>` → `@hw:01`) → builds a
+  `PairedDevice`. `PairingScreen` is now guided (scan → pick → details → pair) with
+  an **Advanced** manual-entry fallback (manual IP + token, as before).
+  **Real handshake confirmed from a JOE pairing packet capture and reworked accordingly:**
+  1. `@HP:<setupPIN>,<nameHex>,` (empty token) → machine replies `@hp4:<TOKEN>` and
+     shows a "pair with this device?" prompt on its display.
+  2. Hold the connection while the user confirms on the machine.
+  3. Verify: reconnect and send `@HP:<setupPIN>,<nameHex>,<TOKEN>` → `@hp4` (no
+     colon) = authenticated/paired; store the token.
+
+  There is **no separate pairing mode and no `@HW`/display-PIN step** — `@HP:,,`
+  just returns `@hp5:00` (unknown device). The issued token is effectively
+  per-machine/PIN (it matched the existing token even for a new device name).
+  `PairingViewModel.startPairing` sends the request and waits (90s read timeout) for
+  the machine reply, which only arrives **after** the user confirms on the machine —
+  receiving `@hp4:<TOKEN>` is the success signal (no separate Verify step). **Verified
+  end-to-end on hardware.** `PairedDevice` distinguishes `label` (this phone's name,
+  sent in `@HP` + shown on the machine prompt) from `machineName` (the machine's
+  discovered name, for display via `displayName`).
+- [ ] **Step 7** — **Brew preset editor**. Create/edit/delete presets, with inputs
+  bounded by the model's product catalogue (`Ef1030Catalog`). Almost pure app-side
+  (`upsertPreset`/`deletePreset` already exist on the repository).
+- [ ] **Step 8** — **Brewing** (`@TP:`). Last, because it has physical side effects.
+  Payload builder in `:protocol` (port `build_tp_payload` from `../jura.py`,
+  unit-tested), brew a preset, and a *Brewing* screen showing streamed `@tp:`/`@tv:`
+  progress. Gate behind a confirm dialog; start with one safe product.
+
+### Architecture decisions (UI + state)
+
+- **One Activity, Navigation Compose.** Screens are composable destinations, not
+  separate Activities (shared ViewModels, back stack, transitions).
+- **Persistence: DataStore + kotlinx.serialization JSON** holding one `AppState`
+  (`pairedDevice: PairedDevice?`, `presets: List<BrewPreset>`), exposed as a
+  reactive `Flow` by `AppStateRepository`. One paired machine for now.
+- **Preset = a configured product.** `BrewPreset` (app domain) stores chosen
+  values and references a product by code. The product **catalogue** (codes,
+  ranges, which fields apply, defaults) is **per-model reference data in
+  `:protocol`** — hardcode `Ef1030Catalog` now (from `../jura.py` PRODUCTS / the
+  EF1030 XML), parse from machine XML later. `Temperature` (LOW/NORMAL/HIGH →
+  wire 0/1/2) lives in `:protocol`; presets/state live in `:app`.
+- New deps when implementing: `navigation-compose`, `kotlinx-serialization`
+  (plugin + json), `datastore`.
 
 When you complete a step, update this checklist and the "current state" note so
 the next session knows where things stand.
