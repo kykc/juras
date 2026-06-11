@@ -3,18 +3,15 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M39,34h30v8h-30z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M40,46h28v18a14,14 0 0,1 -14,14h0a14,14 0 0,1 -14,-14z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M68,50h5a7,7 0 0,1 0,14h-5v-4h5a3,3 0 0,0 0,-6h-5z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,22c2,3 -1,5 0,8M54,22c2,3 -1,5 0,8M64,22c2,3 -1,5 0,8"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2" />
+    <!-- The ic_coffee (Material local_cafe) cup, scaled 2.5x and centered in the
+         adaptive-icon safe zone (24x24 path -> 60x60, offset 24). -->
+    <group
+        android:scaleX="2.5"
+        android:scaleY="2.5"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M20,3H4v10c0,2.21,1.79,4,4,4h6c2.21,0,4,-1.79,4,-4v-3h2c1.11,0,2,-0.89,2,-2V5c0,-1.11,-0.89,-2,-2,-2zm0,5h-2V5h2v3zM4,19h16v2H4z" />
+    </group>
 </vector>

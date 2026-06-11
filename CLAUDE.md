@@ -71,6 +71,23 @@ cd juras
 
 Debug APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 
+### Release build (signed, for sideloading to household phones)
+
+Release signing reads a **git-ignored** `keystore.properties` (`storeFile`,
+`storePassword`, `keyAlias`, `keyPassword`) pointing at `juras-release.jks` (also
+git-ignored). Both must be kept to ship updates that install over the top (same
+signature); if lost, updates need uninstall+reinstall. Build:
+
+```powershell
+$env:JAVA_HOME = "D:\Home\Kykc\Apps\scoop\apps\temurin21-jdk\current"
+.\gradlew.bat :app:assembleRelease   # -> app/build/outputs/apk/release/app-release.apk
+```
+
+To publish an update, bump `versionCode` (and `versionName`) in
+`app/build.gradle.kts`, rebuild, and reinstall on each device. Sideload installs
+may be flagged by **Play Protect** ("Install anyway"), which is separate from the
+"unknown sources" permission.
+
 > Note: a system Gradle (e.g. 9.x via scoop) exists on the dev machine but is
 > **only** used to (re)generate the wrapper. Day-to-day builds go through
 > `./gradlew`, pinned to 8.13, which is compatible with AGP 8.10.1.

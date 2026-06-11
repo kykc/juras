@@ -28,6 +28,7 @@ captures/
 # Keystores & signing (never commit secrets)
 *.jks
 *.keystore
+keystore.properties
 
 # NDK
 obj/
