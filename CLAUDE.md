@@ -368,6 +368,12 @@ before brewing**.
   **body tap/long-press** (edit), and a **Brew** button — three distinct actions.
   Local order state is synced from the persisted flow via `LaunchedEffect` and
   committed on drag stop.
+- **Quick brew (one-time, not saved):** a "Quick brew" header button on the Brew
+  screen opens `screens/PresetEditorScreen` in quick-brew mode (it takes `onBrewNow`
+  instead of `onSave`/`onDelete`; same screen, two modes). "Brew" stashes the
+  ephemeral `BrewPreset` in `AppViewModel.pendingBrew` and navigates to
+  `Route.Brewing(presetId = null)`, which resolves the preset from `pendingBrew`
+  rather than the saved list. Saved-preset brews pass a non-null `presetId`.
 
 When you complete a step, update this checklist and the "current state" note so
 the next session knows where things stand.

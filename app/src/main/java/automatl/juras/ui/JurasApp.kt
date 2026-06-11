@@ -90,6 +90,7 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                     onBrew = { preset -> navController.navigate(Route.Brewing(preset.id)) },
                     onEdit = { preset -> navController.navigate(Route.PresetEditor(preset.id)) },
                     onAddPreset = { navController.navigate(Route.PresetEditor()) },
+                    onQuickBrew = { navController.navigate(Route.QuickBrew) },
                     onReorder = { presets -> appViewModel.reorderPresets(presets) },
                 )
             }
@@ -135,10 +136,29 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                     onCancel = { navController.popBackStack() },
                 )
             }
+            composable<Route.QuickBrew> {
+                PresetEditorScreen(
+                    preset = null,
+                    onBrewNow = { preset ->
+                        appViewModel.setPendingBrew(preset)
+                        navController.navigate(Route.Brewing()) {
+                            // Drop QuickBrew so Brewing's back returns to the Brew list.
+                            popUpTo(Route.QuickBrew) { inclusive = true }
+                        }
+                    },
+                    onCancel = { navController.popBackStack() },
+                )
+            }
             composable<Route.Brewing> { backStack ->
                 val presetId = backStack.toRoute<Route.Brewing>().presetId
+                val pendingBrew by appViewModel.pendingBrew.collectAsStateWithLifecycle()
+                val preset = if (presetId != null) {
+                    state.presets.firstOrNull { it.id == presetId }
+                } else {
+                    pendingBrew
+                }
                 BrewingScreen(
-                    preset = state.presets.firstOrNull { it.id == presetId },
+                    preset = preset,
                     device = state.pairedDevice,
                     onClose = { navController.popBackStack() },
                 )

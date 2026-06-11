@@ -36,13 +36,19 @@ import automatl.juras.protocol.product.Product
 import java.util.UUID
 import kotlin.math.roundToInt
 
+/**
+ * Customization screen, used in two modes by which callbacks are supplied:
+ * - **Edit/add a preset:** pass [onSave] (+ [onDelete] for existing).
+ * - **Quick brew (one-time, not saved):** pass [onBrewNow] only.
+ */
 @Composable
 fun PresetEditorScreen(
     preset: BrewPreset?,
-    onSave: (BrewPreset) -> Unit,
-    onDelete: (String) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    onSave: ((BrewPreset) -> Unit)? = null,
+    onDelete: ((String) -> Unit)? = null,
+    onBrewNow: ((BrewPreset) -> Unit)? = null,
 ) {
     val fallback = remember(preset) {
         Ef1030Catalog.byCode(preset?.productCode ?: -1) ?: Ef1030Catalog.products.first()
@@ -69,18 +75,24 @@ fun PresetEditorScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            if (preset == null) "New preset" else "Edit preset",
-            style = MaterialTheme.typography.headlineMedium,
-        )
+        val title = when {
+            onSave == null -> "Quick brew"
+            preset == null -> "New preset"
+            else -> "Edit preset"
+        }
+        Text(title, style = MaterialTheme.typography.headlineMedium)
 
-        OutlinedTextField(
-            value = label,
-            onValueChange = { label = it },
-            label = { Text("Label") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // No label needed for a one-time quick brew (it isn't saved); the preset's
+        // name falls back to the product name.
+        if (onSave != null) {
+            OutlinedTextField(
+                value = label,
+                onValueChange = { label = it },
+                label = { Text("Label") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         FieldLabel("Product")
         ProductDropdown(selected = product) { chosen ->
@@ -147,25 +159,39 @@ fun PresetEditorScreen(
             )
         }
 
-        Button(
-            onClick = {
-                onSave(
-                    BrewPreset(
-                        id = preset?.id ?: UUID.randomUUID().toString(),
-                        name = label.ifBlank { product.name },
-                        productCode = productCode,
-                        strength = strength,
-                        waterMl = water,
-                        temperature = temperature,
-                        milkMl = if (product.hasMilk) milk else null,
-                        bypassMl = if (product.hasBypass) bypass else null,
-                    ),
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Save") }
+        val current: () -> BrewPreset = {
+            BrewPreset(
+                id = preset?.id ?: UUID.randomUUID().toString(),
+                name = label.ifBlank { product.name },
+                productCode = productCode,
+                strength = strength,
+                waterMl = water,
+                temperature = temperature,
+                milkMl = if (product.hasMilk) milk else null,
+                bypassMl = if (product.hasBypass) bypass else null,
+            )
+        }
 
-        if (preset != null) {
+        onBrewNow?.let { brew ->
+            Button(
+                onClick = { brew(current()) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Brew") }
+        }
+
+        onSave?.let { save ->
+            val saveModifier = Modifier.fillMaxWidth()
+            // When brewing is also offered, the Save action is secondary.
+            if (onBrewNow != null) {
+                OutlinedButton(onClick = { save(current()) }, modifier = saveModifier) {
+                    Text("Save preset")
+                }
+            } else {
+                Button(onClick = { save(current()) }, modifier = saveModifier) { Text("Save") }
+            }
+        }
+
+        if (preset != null && onDelete != null) {
             OutlinedButton(
                 onClick = { onDelete(preset.id) },
                 modifier = Modifier.fillMaxWidth(),

@@ -24,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ fun BrewScreen(
     onBrew: (BrewPreset) -> Unit,
     onEdit: (BrewPreset) -> Unit,
     onAddPreset: () -> Unit,
+    onQuickBrew: () -> Unit,
     onReorder: (List<BrewPreset>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -90,7 +92,14 @@ fun BrewScreen(
         ) {
             item(key = "header") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Brew", style = MaterialTheme.typography.headlineMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Brew", style = MaterialTheme.typography.headlineMedium)
+                        TextButton(onClick = onQuickBrew) { Text("Quick brew") }
+                    }
                     val device = state.pairedDevice
                     Text(
                         if (device != null) {
@@ -101,15 +110,13 @@ fun BrewScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(
-                        if (items.isEmpty()) {
-                            "No presets yet. Tap + to add one."
-                        } else {
-                            "Hold the handle to reorder · tap a preset to edit · tap Brew to make it."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (items.isEmpty()) {
+                        Text(
+                            "No presets yet. Tap + to add one.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 

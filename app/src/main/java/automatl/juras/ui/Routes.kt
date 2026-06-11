@@ -8,7 +8,9 @@ sealed interface Route {
     @Serializable data object Status : Route
     @Serializable data object Settings : Route
     @Serializable data object Pairing : Route
+    @Serializable data object QuickBrew : Route
 
     @Serializable data class PresetEditor(val presetId: String? = null) : Route
-    @Serializable data class Brewing(val presetId: String) : Route
+    /** [presetId] null = brew the ephemeral quick-brew preset held by AppViewModel. */
+    @Serializable data class Brewing(val presetId: String? = null) : Route
 }

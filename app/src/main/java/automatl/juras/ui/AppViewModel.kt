@@ -9,8 +9,10 @@ import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.DefaultPresets
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.product.Ef1030Catalog
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val state: StateFlow<AppState?> = repository.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Ephemeral preset for a one-time "quick brew" that is not saved. */
+    private val _pendingBrew = MutableStateFlow<BrewPreset?>(null)
+    val pendingBrew: StateFlow<BrewPreset?> = _pendingBrew.asStateFlow()
+
+    fun setPendingBrew(preset: BrewPreset) {
+        _pendingBrew.value = preset
+    }
 
     /** Pair a device and seed default presets if none exist yet (clean-state OOBE). */
     fun pairDevice(device: PairedDevice) {

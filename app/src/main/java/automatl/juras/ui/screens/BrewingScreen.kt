@@ -102,7 +102,16 @@ fun BrewingScreen(
             }
 
             is BrewUiState.Done -> {
-                Text(s.message, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    s.message,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (s.success) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    textAlign = TextAlign.Center,
+                )
                 Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Done") }
             }
 

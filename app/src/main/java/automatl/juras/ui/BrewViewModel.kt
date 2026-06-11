@@ -6,6 +6,7 @@ import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.BrewProgress
+import automatl.juras.protocol.client.BrewStateNames
 import automatl.juras.protocol.client.JuraClient
 import automatl.juras.protocol.client.TpPayload
 import automatl.juras.protocol.product.Ef1030Catalog
@@ -27,7 +28,7 @@ sealed interface BrewUiState {
         val doneMl: Int? = null,
         val totalMl: Int? = null,
     ) : BrewUiState
-    data class Done(val message: String) : BrewUiState
+    data class Done(val message: String, val success: Boolean = true) : BrewUiState
     data class Failed(val message: String) : BrewUiState
 }
 
@@ -66,13 +67,16 @@ class BrewViewModel : ViewModel() {
             inProgress = false
             _state.value = result.fold(
                 onSuccess = { outcome ->
-                    BrewUiState.Done(
-                        if (outcome.completed) {
-                            "Done — enjoy!"
-                        } else {
-                            "Finished (status 0x%02X)".format(outcome.statusByte ?: 0)
-                        },
-                    )
+                    if (outcome.completed) {
+                        BrewUiState.Done("Done — enjoy!", success = true)
+                    } else {
+                        // A non-zero finish status is a state code (same space as @tv),
+                        // e.g. 0x40 = "Fill water tank".
+                        val reason = outcome.statusByte?.let { BrewStateNames.nameFor(it) }
+                        val message = reason?.let { "Couldn't complete — $it" }
+                            ?: "Finished (status 0x%02X)".format(outcome.statusByte ?: 0)
+                        BrewUiState.Done(message, success = false)
+                    }
                 },
                 onFailure = { BrewUiState.Failed(it.message ?: "Brew failed") },
             )
