@@ -110,6 +110,9 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                             appViewModel.savePairedDevice(it.copy(machineName = name))
                         }
                     },
+                    exportConfig = { appViewModel.exportConfig() },
+                    parseConfig = { appViewModel.parseConfig(it) },
+                    applyConfig = { appViewModel.applyConfig(it) },
                 )
             }
             composable<Route.Pairing> {

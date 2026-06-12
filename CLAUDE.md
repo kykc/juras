@@ -394,6 +394,12 @@ before brewing**.
   **body tap/long-press** (edit), and a **Brew** button — three distinct actions.
   Local order state is synced from the persisted flow via `LaunchedEffect` and
   committed on drag stop.
+- **Config import/export:** `domain/ConfigTransfer` (`ExportedConfig` envelope with
+  required `format`/`version` validation fields + `ConfigCodec`) serializes device
+  + presets to **YAML** via `kaml`. Settings uses Storage Access Framework pickers
+  (`CreateDocument`/`OpenDocument`); import parses+validates, then replaces state
+  after a confirm dialog (`AppViewModel.parseConfig`/`applyConfig` →
+  `AppStateRepository.replaceConfig`). The file holds the pairing token — sensitive.
 - **Quick brew (one-time, not saved):** a "Quick brew" header button on the Brew
   screen opens `screens/PresetEditorScreen` in quick-brew mode (it takes `onBrewNow`
   instead of `onSave`/`onDelete`; same screen, two modes). "Brew" stashes the

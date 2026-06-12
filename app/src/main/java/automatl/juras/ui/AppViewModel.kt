@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import automatl.juras.data.AppStateRepository
 import automatl.juras.domain.AppState
 import automatl.juras.domain.BrewPreset
+import automatl.juras.domain.ConfigCodec
 import automatl.juras.domain.DefaultPresets
+import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.product.Ef1030Catalog
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,5 +64,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun reorderPresets(presets: List<BrewPreset>) {
         viewModelScope.launch { repository.setPresets(presets) }
+    }
+
+    // ── config import / export ───────────────────────────────────────────────
+
+    /** Serialize the current device + presets to a YAML config document. */
+    fun exportConfig(): String = ConfigCodec.encode(state.value ?: AppState())
+
+    /** Parse + validate an imported config document (does not apply it). */
+    fun parseConfig(text: String): Result<ExportedConfig> = runCatching { ConfigCodec.decode(text) }
+
+    /** Replace the current device + presets with an imported config. */
+    fun applyConfig(config: ExportedConfig) {
+        viewModelScope.launch { repository.replaceConfig(config.pairedDevice, config.presets) }
     }
 }

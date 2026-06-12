@@ -79,4 +79,9 @@ class AppStateRepository(private val context: Context) {
     suspend fun setPresets(presets: List<BrewPreset>) {
         context.appStateDataStore.updateData { it.copy(presets = presets) }
     }
+
+    /** Replace device + presets together — used when importing a config. */
+    suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) {
+        context.appStateDataStore.updateData { it.copy(pairedDevice = device, presets = presets) }
+    }
 }

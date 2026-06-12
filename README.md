@@ -30,6 +30,9 @@ checks all happen on your own network with **no cloud account required**.
 - 📊 **Status** — per-product brew counters, maintenance status (cleaning / filter
   / descaling), maintenance cycle counters, and live machine flags (e.g. "Fill
   water tank", "Coffee ready").
+- 🔁 **Import / export** your configuration (paired machine + presets) as a
+  human-readable **YAML** file — move your whole setup to another phone. Imports
+  are validated and replace the current config after a confirmation.
 
 On first pairing the preset list is **seeded with every product** the machine
 supports, so it's usable immediately.
@@ -123,7 +126,7 @@ one (same keystore = installs in place, keeping presets and pairing).
 - **Kotlin** + **Jetpack Compose** (Material 3), single-Activity **Navigation
   Compose** with a bottom-nav shell (Brew / Status / Settings).
 - **DataStore** + kotlinx-serialization for persistence; reactive state via
-  Kotlin coroutines/Flow.
+  Kotlin coroutines/Flow. Config import/export uses **YAML** (`kaml`).
 - **Gradle** (Kotlin DSL) with a version catalog.
 - Two modules: a pure-Kotlin **`:protocol`** library (no Android dependencies,
   JVM-unit-tested) and the **`:app`** UI.

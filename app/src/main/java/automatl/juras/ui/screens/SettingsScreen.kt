@@ -1,10 +1,15 @@
 package automatl.juras.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -17,11 +22,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(
@@ -29,13 +40,68 @@ fun SettingsScreen(
     onEditConnection: () -> Unit,
     onUnpair: () -> Unit,
     onRename: (String) -> Unit,
+    exportConfig: () -> String,
+    parseConfig: (String) -> Result<ExportedConfig>,
+    applyConfig: (ExportedConfig) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var renaming by remember { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<ExportedConfig?>(null) }
+    var importError by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/yaml"),
+    ) { uri ->
+        if (uri != null) {
+            val yaml = exportConfig()
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use {
+                            it.write(yaml.toByteArray())
+                        }
+                    }.isSuccess
+                }
+                Toast.makeText(
+                    context,
+                    if (ok) "Configuration exported" else "Export failed",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            it.readBytes().decodeToString()
+                        }
+                    }.getOrNull()
+                }
+                if (text == null) {
+                    importError = "Couldn't read the selected file."
+                } else {
+                    parseConfig(text).fold(
+                        onSuccess = { pendingImport = it },
+                        onFailure = { importError = it.message ?: "Invalid config file." },
+                    )
+                }
+            }
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -81,6 +147,29 @@ fun SettingsScreen(
                 Text("Unpair")
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Configuration", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Export your machine and presets to a file, or import them onto another " +
+                        "phone. The file contains your pairing token — keep it private.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = { exportLauncher.launch("juras-config.yaml") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Export config") }
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Import config") }
+            }
+        }
     }
 
     if (renaming && device != null) {
@@ -91,6 +180,38 @@ fun SettingsScreen(
                 renaming = false
             },
             onDismiss = { renaming = false },
+        )
+    }
+
+    pendingImport?.let { config ->
+        val devicePart = config.pairedDevice?.let { "machine \"${it.displayName}\" and " } ?: ""
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Replace configuration?") },
+            text = {
+                Text(
+                    "This will replace your current $devicePart${config.presets.size} preset(s) " +
+                        "with the imported ones. Your present configuration will be overwritten.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    applyConfig(config)
+                    pendingImport = null
+                }) { Text("Replace") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    importError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { importError = null },
+            title = { Text("Import failed") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { importError = null }) { Text("OK") } },
         )
     }
 }
