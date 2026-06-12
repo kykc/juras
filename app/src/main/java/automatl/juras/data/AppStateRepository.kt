@@ -64,8 +64,14 @@ class AppStateRepository(private val context: Context) {
 
     suspend fun upsertPreset(preset: BrewPreset) {
         context.appStateDataStore.updateData { current ->
-            val others = current.presets.filterNot { it.id == preset.id }
-            current.copy(presets = others + preset)
+            val presets = if (current.presets.any { it.id == preset.id }) {
+                // Edit: replace in place, keeping the preset's position.
+                current.presets.map { if (it.id == preset.id) preset else it }
+            } else {
+                // New: add to the top of the list.
+                listOf(preset) + current.presets
+            }
+            current.copy(presets = presets)
         }
     }
 
