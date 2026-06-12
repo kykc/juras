@@ -202,6 +202,69 @@ Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 > pushes and self-heals leftover frames. Always match responses by prefix, never by
 > position.
 
+> **Brewing on isolated subnets — do NOT add a keepalive.** During a brew the
+> machine streams progress (`@tv:`) and the phone goes silent (only ACKs). A
+> firewall that closes the IoT->main return path after a short idle (~2 s, confirmed
+> by capture) then drops the progress frames and the brew screen hangs. **Every
+> app-side keepalive attempt made it worse and was reverted:** an `@TG:C0` read
+> mid-brew stalls the machine's state machine (proven same-VLAN: works off, hangs
+> on); even a **1-byte TCP urgent/OOB segment hung the machine hard (no buttons
+> until a power cycle)** — the firmware can't tolerate *any* extra traffic during a
+> brew. So there is no keepalive. The fix is **network-side**: a surgical firewall
+> rule allowing the machine<->phone pair (or the phone on the IoT VLAN). Reads are
+> unaffected (the phone is constantly sending requests). `forceQuit()` (long-press
+> Stop) abandons locally without contacting the machine.
+
+> **Shared token / single session (confirmed machine facts).** The machine accepts
+> **one** TCP session at a time, and every device paired with the same setup PIN gets
+> the **same token** — the device name is only a cosmetic label. So the machine
+> *cannot tell two phones apart*: **concurrent/overlapping use is unsupportable by
+> design** (JOE has the same wall); only clean sequential use works. It also appears
+> to buffer outgoing status frames **per session token, not per socket**: when a
+> session dies without being read to the end (hang, RST, force-quit, app killed), its
+> queued `@tb`/`@tv`/`@tf` frames can be **re-delivered to the next connection** that
+> authenticates with that token — so the next brew starts fine on the machine but the
+> client immediately reads the *previous* brew's `@tf:00` and shows "enjoy" instantly
+> (or desyncs and hangs).
+
+> **⚠ Do NOT add drain-on-close (`closeGracefully`) or flush-on-open (`flushInput`).**
+> Tried 2026-06: drain buffered input then FIN-close after each op, plus a 500 ms
+> input flush before each op, to clear the per-token backlog above. **It made the
+> machine hang on *every* operation, including status that worked fine before** — same
+> fragility class as the `@TG:C0`/keepalive/OOB experiments. Reverted to plain
+> `close()` (immediate, RST if data buffered) and no flush. This machine tolerates
+> only the minimal request/response pattern; extra reads/half-closes destabilize it.
+> The stale-backlog / two-phone problem is still **open** — solve it with packet
+> captures first, not by adding TCP behavior blindly.
+
+> **★ JOE streams live status/progress over UDP 51515, not TCP (key finding, decompiled).**
+> JOE runs **two channels at once** per machine (one TCP channel, one UDP channel):
+> - **TCP 51515 = commands only** — `@HP` auth, `@TP` brew start, `@TR`/`@TG` stats,
+>   settings, language download. Brief request/response. JOE never holds a `@TS:01`
+>   remote-screen stream for live data.
+> - **UDP 51515 = live status + brew progress** — every **1000 ms** JOE unicasts a
+>   plaintext datagram `0010A5F3` + *client IP* (4 bytes hex) + `0000000000000000`
+>   to the machine, which replies with a plaintext binary status
+>   packet. No cipher, no auth token in the poll. A **30 s** no-reply timeout drops the
+>   connection. This is the *same* packet family as UDP discovery — the discovery
+>   beacon reply already carries the full status payload.
+>
+> Reply layout (validate against a real capture): `[0:2]` total length; `[2:4]` marker, `& 0x0FFF == 0x05F3`, bit15 set,
+> bit14 clear; `[4:20]` name; `[20:52]` machine id; `[52:68]` str; `[68:78]` version/
+> counter words; byte `109` flags (`bit0==0` ⇒ product running → emit `@TV`, else
+> `@TF`); `[110:len]` = the status payload bytes. JOE rebuilds `"@T"+("V"|"F")+":"+
+> hex(payload)+"\r\n"` and runs it through the **same** `@TV`/`@TF` parser we already
+> have. So our existing decoders work unchanged — only the transport differs.
+>
+> **Why this matters:** UDP is connectionless, so multi-phone status needs no single
+> TCP session (each phone polls independently) — and keeping TCP minimal is exactly
+> what this fragile firmware wants. Our current app streams status/progress over TCP
+> (`@TM:50` push / `@TS:01`), the heavy path that serializes on the one session and
+> stresses the machine. Candidate fix for the open multi-phone/stability issues: poll
+> status over UDP like JOE; keep TCP for `@TP` and other commands only. **Verify first
+> with a capture:** does the machine answer the UDP poll with no prior TCP auth, and do
+> the byte offsets match EF1030?
+
 ### Key commands
 | Command | Purpose |
 |---|---|

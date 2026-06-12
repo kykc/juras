@@ -12,6 +12,7 @@ import automatl.juras.protocol.client.TpPayload
 import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.transport.JuraConnection
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,14 +40,17 @@ class BrewViewModel : ViewModel() {
 
     private var connection: JuraConnection? = null
     private var inProgress = false
+    private var brewJob: Job? = null
+    @Volatile private var abandoned = false
 
     fun start(device: PairedDevice, preset: BrewPreset) {
         if (inProgress) return
         inProgress = true
+        abandoned = false
         _state.value = BrewUiState.Connecting
         val payload = buildPayload(preset)
 
-        viewModelScope.launch {
+        brewJob = viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     JuraConnection(device.host, readTimeoutMs = 60_000).use { conn ->
@@ -63,6 +67,9 @@ class BrewViewModel : ViewModel() {
                     }
                 }
             }
+            // If force-abandoned, forceQuit() already cleaned up and the screen is
+            // leaving — don't overwrite state with a brew result.
+            if (abandoned) return@launch
             connection = null
             inProgress = false
             _state.value = result.fold(
@@ -87,6 +94,28 @@ class BrewViewModel : ViewModel() {
     fun stop() {
         val conn = connection ?: return
         viewModelScope.launch(Dispatchers.IO) { runCatching { conn.send("@TG:FF") } }
+    }
+
+    /**
+     * Forcibly abandon brewing **without talking to the machine** — for when the
+     * connection is wedged (e.g. a firewall dropped the return stream and reads
+     * hang). Cancels the brew coroutine and closes the socket locally; the machine
+     * keeps doing whatever it's doing. The screen should navigate away after this.
+     */
+    fun forceQuit() {
+        abandoned = true
+        inProgress = false
+        brewJob?.cancel()
+        brewJob = null
+        val conn = connection
+        connection = null
+        // Closing the socket unblocks the wedged read; no app-level frames are sent.
+        runCatching { conn?.close() }
+        _state.value = BrewUiState.Idle
+    }
+
+    override fun onCleared() {
+        runCatching { connection?.close() }
     }
 
     private fun buildPayload(preset: BrewPreset): String {
