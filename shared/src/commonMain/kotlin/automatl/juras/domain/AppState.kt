@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 data class AppState(
     val pairedDevice: PairedDevice? = null,
     val presets: List<BrewPreset> = emptyList(),
+    val darkMode: Boolean = false,
 )
 
 /**

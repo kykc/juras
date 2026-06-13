@@ -91,4 +91,8 @@ class AppStateRepository(private val context: Context) : AppStateStore {
     override suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) {
         context.appStateDataStore.updateData { it.copy(pairedDevice = device, presets = presets) }
     }
+
+    override suspend fun setDarkMode(dark: Boolean) {
+        context.appStateDataStore.updateData { it.copy(darkMode = dark) }
+    }
 }

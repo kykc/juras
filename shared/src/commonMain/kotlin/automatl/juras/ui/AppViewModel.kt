@@ -68,4 +68,8 @@ class AppViewModel(private val store: AppStateStore) : ViewModel() {
     fun applyConfig(config: ExportedConfig) {
         viewModelScope.launch { store.replaceConfig(config.pairedDevice, config.presets) }
     }
+
+    fun setDarkMode(dark: Boolean) {
+        viewModelScope.launch { store.setDarkMode(dark) }
+    }
 }

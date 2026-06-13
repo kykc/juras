@@ -13,6 +13,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +32,8 @@ import automatl.juras.ui.platform.rememberSaveFileLauncher
 @Composable
 fun SettingsScreen(
     device: PairedDevice?,
+    darkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
     onEditConnection: () -> Unit,
     onUnpair: () -> Unit,
     onRename: (String) -> Unit,
@@ -128,6 +131,19 @@ fun SettingsScreen(
                     onClick = { openLauncher() },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Import config") }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Dark mode", style = MaterialTheme.typography.titleMedium)
+                Switch(checked = darkMode, onCheckedChange = onDarkModeChange)
             }
         }
     }

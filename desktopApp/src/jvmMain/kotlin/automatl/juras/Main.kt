@@ -10,7 +10,6 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import automatl.juras.data.FileAppStateStore
 import automatl.juras.ui.JurasApp
-import automatl.juras.ui.theme.JurasTheme
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -74,9 +73,7 @@ fun main() {
             icon = BitmapPainter(awtIcon.toComposeImageBitmap()),
             state = windowState,
         ) {
-            JurasTheme {
-                JurasApp(store = store)
-            }
+            JurasApp(store = store)
         }
     }
 }

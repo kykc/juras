@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import automatl.juras.data.AppStateRepository
 import automatl.juras.ui.JurasApp
-import automatl.juras.ui.theme.JurasTheme
 
 class MainActivity : ComponentActivity() {
     private val repository by lazy { AppStateRepository(applicationContext) }
@@ -15,9 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            JurasTheme {
-                JurasApp(store = repository)
-            }
+            JurasApp(store = repository)
         }
     }
 }

@@ -68,5 +68,8 @@ class FileAppStateStore : AppStateStore {
 
     override suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) =
         update { it.copy(pairedDevice = device, presets = presets) }
+
+    override suspend fun setDarkMode(dark: Boolean) =
+        update { it.copy(darkMode = dark) }
 }
 

@@ -1,5 +1,6 @@
 package automatl.juras.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import automatl.juras.domain.AppStateStore
+import automatl.juras.ui.theme.JurasTheme
 import automatl.juras.ui.screens.BrewScreen
 import automatl.juras.ui.screens.BrewingScreen
 import automatl.juras.ui.screens.PairingScreen
@@ -59,13 +61,15 @@ fun JurasApp(store: AppStateStore) {
     val appViewModel: AppViewModel = viewModel { AppViewModel(store) }
     val appState by appViewModel.state.collectAsStateWithLifecycle()
     val state = appState
+    val darkTheme = appState?.darkMode ?: isSystemInDarkTheme()
 
-    if (state == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    JurasTheme(darkTheme = darkTheme) {
+        if (state == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@JurasTheme
         }
-        return
-    }
 
     val navController = rememberNavController()
     val startDestination: Route = remember {
@@ -102,6 +106,8 @@ fun JurasApp(store: AppStateStore) {
             composable<Route.Settings> {
                 SettingsScreen(
                     device = state.pairedDevice,
+                    darkMode = state.darkMode,
+                    onDarkModeChange = { appViewModel.setDarkMode(it) },
                     onEditConnection = { navController.navigate(Route.Pairing) },
                     onUnpair = {
                         appViewModel.unpair()
@@ -172,6 +178,7 @@ fun JurasApp(store: AppStateStore) {
             }
         }
     }
+    } // JurasTheme
 }
 
 @Composable
