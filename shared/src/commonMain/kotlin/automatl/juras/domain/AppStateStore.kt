@@ -11,5 +11,5 @@ interface AppStateStore {
     suspend fun deletePreset(id: String)
     suspend fun setPresets(presets: List<BrewPreset>)
     suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>)
-    suspend fun setDarkMode(dark: Boolean)
+    suspend fun setDarkModePreference(pref: DarkModePreference)
 }

@@ -7,6 +7,7 @@ import androidx.datastore.dataStore
 import automatl.juras.domain.AppState
 import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.BrewPreset
+import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.PairedDevice
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.SerializationException
@@ -92,7 +93,7 @@ class AppStateRepository(private val context: Context) : AppStateStore {
         context.appStateDataStore.updateData { it.copy(pairedDevice = device, presets = presets) }
     }
 
-    override suspend fun setDarkMode(dark: Boolean) {
-        context.appStateDataStore.updateData { it.copy(darkMode = dark) }
+    override suspend fun setDarkModePreference(pref: DarkModePreference) {
+        context.appStateDataStore.updateData { it.copy(darkModePreference = pref) }
     }
 }

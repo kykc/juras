@@ -13,7 +13,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
 import automatl.juras.ui.platform.rememberOpenFileLauncher
@@ -32,8 +35,8 @@ import automatl.juras.ui.platform.rememberSaveFileLauncher
 @Composable
 fun SettingsScreen(
     device: PairedDevice?,
-    darkMode: Boolean,
-    onDarkModeChange: (Boolean) -> Unit,
+    darkModePreference: DarkModePreference,
+    onDarkModePreferenceChange: (DarkModePreference) -> Unit,
     onEditConnection: () -> Unit,
     onUnpair: () -> Unit,
     onRename: (String) -> Unit,
@@ -135,15 +138,26 @@ fun SettingsScreen(
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Dark mode", style = MaterialTheme.typography.titleMedium)
-                Switch(checked = darkMode, onCheckedChange = onDarkModeChange)
+                Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                val options = listOf(
+                    DarkModePreference.SYSTEM to "System",
+                    DarkModePreference.DARK   to "Dark",
+                    DarkModePreference.LIGHT  to "Light",
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, (pref, label) ->
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                            selected = darkModePreference == pref,
+                            onClick = { onDarkModePreferenceChange(pref) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
             }
         }
     }

@@ -4,6 +4,7 @@ import automatl.juras.configDir
 import automatl.juras.domain.AppState
 import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.BrewPreset
+import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.PairedDevice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +70,7 @@ class FileAppStateStore : AppStateStore {
     override suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) =
         update { it.copy(pairedDevice = device, presets = presets) }
 
-    override suspend fun setDarkMode(dark: Boolean) =
-        update { it.copy(darkMode = dark) }
+    override suspend fun setDarkModePreference(pref: DarkModePreference) =
+        update { it.copy(darkModePreference = pref) }
 }
 

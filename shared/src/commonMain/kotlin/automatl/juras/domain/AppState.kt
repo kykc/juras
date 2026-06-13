@@ -5,12 +5,15 @@ import automatl.juras.protocol.Temperature
 import automatl.juras.protocol.product.Product
 import kotlinx.serialization.Serializable
 
+@Serializable
+enum class DarkModePreference { SYSTEM, DARK, LIGHT }
+
 /** Root persisted application state. One paired machine for now. */
 @Serializable
 data class AppState(
     val pairedDevice: PairedDevice? = null,
     val presets: List<BrewPreset> = emptyList(),
-    val darkMode: Boolean = false,
+    val darkModePreference: DarkModePreference = DarkModePreference.SYSTEM,
 )
 
 /**

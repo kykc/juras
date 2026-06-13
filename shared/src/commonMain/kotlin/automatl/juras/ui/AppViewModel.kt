@@ -6,6 +6,7 @@ import automatl.juras.domain.AppState
 import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.ConfigCodec
+import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.DefaultPresets
 import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
@@ -69,7 +70,7 @@ class AppViewModel(private val store: AppStateStore) : ViewModel() {
         viewModelScope.launch { store.replaceConfig(config.pairedDevice, config.presets) }
     }
 
-    fun setDarkMode(dark: Boolean) {
-        viewModelScope.launch { store.setDarkMode(dark) }
+    fun setDarkModePreference(pref: DarkModePreference) {
+        viewModelScope.launch { store.setDarkModePreference(pref) }
     }
 }

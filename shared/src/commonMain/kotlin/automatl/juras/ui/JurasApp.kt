@@ -31,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import automatl.juras.domain.AppStateStore
+import automatl.juras.domain.DarkModePreference
 import automatl.juras.ui.theme.JurasTheme
 import automatl.juras.ui.screens.BrewScreen
 import automatl.juras.ui.screens.BrewingScreen
@@ -61,7 +62,12 @@ fun JurasApp(store: AppStateStore) {
     val appViewModel: AppViewModel = viewModel { AppViewModel(store) }
     val appState by appViewModel.state.collectAsStateWithLifecycle()
     val state = appState
-    val darkTheme = appState?.darkMode ?: isSystemInDarkTheme()
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (appState?.darkModePreference ?: DarkModePreference.SYSTEM) {
+        DarkModePreference.SYSTEM -> systemDark
+        DarkModePreference.DARK   -> true
+        DarkModePreference.LIGHT  -> false
+    }
 
     JurasTheme(darkTheme = darkTheme) {
         if (state == null) {
@@ -106,8 +112,8 @@ fun JurasApp(store: AppStateStore) {
             composable<Route.Settings> {
                 SettingsScreen(
                     device = state.pairedDevice,
-                    darkMode = state.darkMode,
-                    onDarkModeChange = { appViewModel.setDarkMode(it) },
+                    darkModePreference = state.darkModePreference,
+                    onDarkModePreferenceChange = { appViewModel.setDarkModePreference(it) },
                     onEditConnection = { navController.navigate(Route.Pairing) },
                     onUnpair = {
                         appViewModel.unpair()
