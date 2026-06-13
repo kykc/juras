@@ -26,6 +26,9 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "automatl.juras.MainKt"
+        buildTypes.release.proguard {
+            isEnabled = false
+        }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "Juras"
