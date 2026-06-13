@@ -68,17 +68,16 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":protocol"))
+    implementation(project(":shared"))           // domain, ViewModels, Routes
+    implementation(project(":protocol"))         // direct: AppViewModel uses Ef1030Catalog etc.
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore)
-    implementation(libs.reorderable)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kaml)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

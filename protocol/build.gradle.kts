@@ -1,30 +1,40 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Pure-Kotlin/JVM library: the JURA wire protocol (cipher, framing, transport,
-// commands). Intentionally has NO Android dependencies so it stays unit-testable
-// on a plain JVM and cross-checkable against ../jura.py.
+// Pure-Kotlin library: the JURA wire protocol (cipher, framing, transport, commands).
+// Intentionally has NO Android-specific dependencies so it stays unit-testable on a
+// plain JVM and cross-checkable against ../jura.py.
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_11
+android {
+    namespace = "automatl.juras.protocol"
+    compileSdk = 36
+    defaultConfig { minSdk = 26 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 
-dependencies {
-    implementation(libs.kotlinx.serialization.json)
-    testImplementation(libs.junit)
-}
+kotlin {
+    jvm {
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
+        testRuns["test"].executionTask.configure { useJUnit() }
+    }
+    androidTarget {
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
+    }
 
-tasks.test {
-    useJUnit()
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.serialization.json)
+        }
+        jvmTest.dependencies {
+            implementation(libs.junit)
+        }
+    }
 }

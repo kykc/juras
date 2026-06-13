@@ -477,6 +477,62 @@ before brewing**.
   (`DISPENSING_STATES = {0x34,0x37,0x3C,0x41}`), which triggers the live ml/percent
   progress (so it now works for hot water/milk too, not just espresso). Confirmed on
   hardware: brewing works; `0x21`→"Heating up", `0x40`→"Fill water tank".
+- [x] **Step 9 — CMP migration (Step 2: shared Compose layer).** *(Done; builds
+  clean for both Android and JVM targets.)*  All Compose screens and theme moved
+  from `:app` to `:shared/commonMain`; `:app` is now a thin Android shell
+  (`MainActivity` + `JurasApp` + `AppViewModel` + `AppStateRepository`).
+  Details:
+  - `:protocol` converted to KMP (`commonMain` + `androidTarget` + `jvm`);
+    sources in `src/commonMain/kotlin`.
+  - `:shared` module (KMP + CMP 1.8.0): `commonMain` holds domain
+    (`AppState`, `ConfigTransfer`, `Routes`), ViewModels (`PairingViewModel`,
+    `StatusViewModel`, `BrewViewModel`), and all Compose screens.
+    `androidMain`/`jvmMain` hold platform actuals.
+  - Platform `expect`/`actual` in `shared/src/*/platform/`:
+    - `FilePicker.kt` — `rememberOpenFileLauncher` / `rememberSaveFileLauncher`
+      (Android: SAF; JVM: `JFileChooser`)
+    - `DeviceName.kt` — `defaultDeviceName` (Android: `Build.MODEL`; JVM: `user.name`)
+    - `DateFormat.kt` — `formatClock(millis)` (java.text.SimpleDateFormat in both JVM actuals)
+    - `theme/PlatformTheme.kt` — `platformColorScheme(darkTheme)` (Android: dynamic
+      color on API 31+; JVM: static)
+  - CMP resources in `shared/src/commonMain/composeResources/drawable/`; generated
+    accessor package is `juras.shared.generated.resources`.
+  - Platform actual files use names different from the expect file (`PlatformTheme.kt`
+    not `Theme.kt`) to avoid JVM duplicate-class collision.
+  - Next: Step 10 — abstract `AppStateRepository` behind a KMP interface, move
+    `AppViewModel` to shared; Step 11 — `:desktopApp` entry point.
+- [x] **Step 10 — Move AppViewModel + JurasApp to shared.** *(Done; builds clean
+  for both Android and JVM targets.)*  `:app` is now the absolute minimum shell:
+  `MainActivity` + `AppStateRepository` (DataStore). Everything else is in `:shared`.
+  Details:
+  - `AppStateStore` interface in `shared/commonMain/domain/` — platform-agnostic
+    persistence contract (`val state: Flow<AppState>` + suspend mutators).
+  - `AppStateRepository` in `:app` now `implements AppStateStore`; unchanged internals.
+  - `AppViewModel` moved to `shared/commonMain/ui/`; takes `AppStateStore` (no longer
+    `AndroidViewModel`). Identical logic, depends on `ViewModel` from JetBrains lifecycle.
+  - `JurasApp` moved to `shared/commonMain/ui/`; takes `store: AppStateStore`; creates
+    `AppViewModel` via `viewModel { AppViewModel(store) }` (JetBrains lifecycle lambda
+    factory). Uses `Res.drawable.ic_coffee` (CMP resources) for the Brew tab icon.
+  - `MainActivity` creates `AppStateRepository(applicationContext)` as a lazy val and
+    passes it to `JurasApp(store = repository)`.
+- [x] **Step 11 — `:desktopApp` module (Compose for Desktop entry point).** *(Done;
+  window launches and runs cleanly.)* New Gradle module `desktopApp/` (KMP, jvmMain
+  only). Details:
+  - `desktopApp/build.gradle.kts`: depends on `:shared`, `compose.desktop.currentOs`,
+    `kotlinx-serialization-json`, `kotlinx-coroutines-core`, `kotlinx-coroutines-swing`
+    (required to provide `Dispatchers.Main` on JVM/AWT).
+  - `FileAppStateStore` — JSON-file backed `AppStateStore` in
+    `~/Library/Application Support/Juras/app_state.json` (mac),
+    `%APPDATA%/Juras/` (win), `~/.config/juras/` (linux). Write-first-then-update
+    pattern with `Mutex` for thread safety.
+  - `Main.kt` — CMP `application { Window(...) }` entry point; 390×780 dp portrait
+    window. Passes `FileAppStateStore()` to `JurasApp(store = …)`.
+  - Two runtime fixes needed over Android:
+    1. `kotlinx-coroutines-swing` provides `Dispatchers.Main` (AWT event loop).
+    2. All `viewModel()` no-arg calls replaced with `viewModel { ClassName() }` —
+       Android's default factory uses reflection to find no-arg constructors; the
+       desktop implementation does not; explicit lambda factories work on both.
+  - Launch: `./gradlew :desktopApp:run`.
 
 ### Architecture decisions (UI + state)
 

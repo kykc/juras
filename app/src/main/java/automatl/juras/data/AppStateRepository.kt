@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import automatl.juras.domain.AppState
+import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.PairedDevice
 import kotlinx.coroutines.flow.Flow
@@ -41,11 +42,11 @@ private val Context.appStateDataStore: DataStore<AppState> by dataStore(
  * Single source of truth for persisted app state. Exposes a reactive [state] and
  * suspend mutators. Replaces the old SharedPreferences-based settings.
  */
-class AppStateRepository(private val context: Context) {
+class AppStateRepository(private val context: Context) : AppStateStore {
 
-    val state: Flow<AppState> = context.appStateDataStore.data
+    override val state: Flow<AppState> = context.appStateDataStore.data
 
-    suspend fun setPairedDevice(device: PairedDevice?) {
+    override suspend fun setPairedDevice(device: PairedDevice?) {
         context.appStateDataStore.updateData { it.copy(pairedDevice = device) }
     }
 
@@ -53,7 +54,7 @@ class AppStateRepository(private val context: Context) {
      * Pair a device and, if the preset list is empty (clean state), seed it with
      * [seedIfEmpty]. Existing presets are preserved (e.g. when re-pairing).
      */
-    suspend fun pairDevice(device: PairedDevice, seedIfEmpty: List<BrewPreset>) {
+    override suspend fun pairDevice(device: PairedDevice, seedIfEmpty: List<BrewPreset>) {
         context.appStateDataStore.updateData { current ->
             current.copy(
                 pairedDevice = device,
@@ -62,7 +63,7 @@ class AppStateRepository(private val context: Context) {
         }
     }
 
-    suspend fun upsertPreset(preset: BrewPreset) {
+    override suspend fun upsertPreset(preset: BrewPreset) {
         context.appStateDataStore.updateData { current ->
             val presets = if (current.presets.any { it.id == preset.id }) {
                 // Edit: replace in place, keeping the preset's position.
@@ -75,19 +76,19 @@ class AppStateRepository(private val context: Context) {
         }
     }
 
-    suspend fun deletePreset(id: String) {
+    override suspend fun deletePreset(id: String) {
         context.appStateDataStore.updateData { current ->
             current.copy(presets = current.presets.filterNot { it.id == id })
         }
     }
 
     /** Replace the preset list wholesale — used to persist a reordering. */
-    suspend fun setPresets(presets: List<BrewPreset>) {
+    override suspend fun setPresets(presets: List<BrewPreset>) {
         context.appStateDataStore.updateData { it.copy(presets = presets) }
     }
 
     /** Replace device + presets together — used when importing a config. */
-    suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) {
+    override suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>) {
         context.appStateDataStore.updateData { it.copy(pairedDevice = device, presets = presets) }
     }
 }
