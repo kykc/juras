@@ -1,5 +1,6 @@
 package automatl.juras.data
 
+import automatl.juras.configDir
 import automatl.juras.domain.AppState
 import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.BrewPreset
@@ -69,12 +70,3 @@ class FileAppStateStore : AppStateStore {
         update { it.copy(pairedDevice = device, presets = presets) }
 }
 
-private fun configDir(): File {
-    val os = System.getProperty("os.name")?.lowercase() ?: ""
-    val home = System.getProperty("user.home") ?: "."
-    return when {
-        os.contains("mac") -> File(home, "Library/Application Support/Juras")
-        os.contains("win") -> File(System.getenv("APPDATA") ?: "$home/AppData/Roaming", "Juras")
-        else -> File(home, ".config/juras")
-    }
-}

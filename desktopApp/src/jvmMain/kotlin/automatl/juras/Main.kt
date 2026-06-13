@@ -5,16 +5,56 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
-import androidx.compose.ui.window.rememberWindowState
 import automatl.juras.data.FileAppStateStore
 import automatl.juras.ui.JurasApp
 import automatl.juras.ui.theme.JurasTheme
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.Taskbar
 import java.awt.image.BufferedImage
+
+@Serializable
+private data class WindowGeometry(
+    val x: Float? = null,
+    val y: Float? = null,
+    val width: Float = 390f,
+    val height: Float = 780f,
+)
+
+private val geometryJson = Json { ignoreUnknownKeys = true }
+private val geometryFile get() = configDir().resolve("window_geometry.json")
+
+private fun loadWindowState(): WindowState {
+    val g = runCatching {
+        geometryJson.decodeFromString<WindowGeometry>(geometryFile.readText())
+    }.getOrDefault(WindowGeometry())
+    val position = if (g.x != null && g.y != null)
+        WindowPosition.Absolute(g.x.dp, g.y.dp)
+    else
+        WindowPosition.PlatformDefault
+    return WindowState(position = position, size = DpSize(g.width.dp, g.height.dp))
+}
+
+private fun saveWindowState(state: WindowState) {
+    val pos = state.position
+    val g = WindowGeometry(
+        x = (pos as? WindowPosition.Absolute)?.x?.value,
+        y = (pos as? WindowPosition.Absolute)?.y?.value,
+        width = state.size.width.value,
+        height = state.size.height.value,
+    )
+    runCatching {
+        geometryFile.parentFile?.mkdirs()
+        geometryFile.writeText(geometryJson.encodeToString(g))
+    }
+}
 
 fun main() {
     System.setProperty("apple.awt.application.name", "Juras")
@@ -22,12 +62,17 @@ fun main() {
     runCatching { Taskbar.getTaskbar().iconImage = awtIcon }
 
     val store = FileAppStateStore()
+    val windowState = loadWindowState()
+
     application {
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                saveWindowState(windowState)
+                exitApplication()
+            },
             title = "Juras",
             icon = BitmapPainter(awtIcon.toComposeImageBitmap()),
-            state = rememberWindowState(size = DpSize(390.dp, 780.dp)),
+            state = windowState,
         ) {
             JurasTheme {
                 JurasApp(store = store)
@@ -43,19 +88,15 @@ private fun appIcon(): BufferedImage {
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
     val u = sz / 8
 
-    // Background
     g.color = Color(0x6650A4)
     g.fillRoundRect(0, 0, sz, sz, u, u)
 
-    // Cup body
     g.color = Color.WHITE
     g.fillRoundRect(u * 2, u * 3, u * 4, u * 4, u / 3, u / 3)
 
-    // Handle arc (right side of cup)
     g.stroke = BasicStroke(u / 3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
     g.drawArc(u * 5, u * 4, u + u / 2, u * 2, 90, -180)
 
-    // Saucer
     g.stroke = BasicStroke(1f)
     g.fillRoundRect(u, u * 7 + u / 3, u * 6, u / 2, u / 4, u / 4)
 
