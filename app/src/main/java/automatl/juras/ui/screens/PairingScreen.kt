@@ -1,5 +1,8 @@
 package automatl.juras.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,28 +27,65 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.discovery.DiscoveredMachine
 import automatl.juras.ui.DiscoveryState
 import automatl.juras.ui.PairingState
 import automatl.juras.ui.PairingViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun PairingScreen(
     existing: PairedDevice?,
     onSaved: (PairedDevice) -> Unit,
+    parseConfig: (String) -> Result<ExportedConfig>,
+    applyConfig: (ExportedConfig) -> Unit,
+    onImported: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PairingViewModel = viewModel(),
 ) {
     var advanced by rememberSaveable { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<ExportedConfig?>(null) }
+    var importError by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                    }.getOrNull()
+                }
+                if (text == null) {
+                    importError = "Couldn't read the selected file."
+                } else {
+                    parseConfig(text).fold(
+                        onSuccess = { pendingImport = it },
+                        onFailure = { importError = it.message ?: "Invalid config file." },
+                    )
+                }
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -54,13 +95,21 @@ fun PairingScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Connect to machine", style = MaterialTheme.typography.headlineMedium)
-        TextButton(
-            onClick = {
-                advanced = !advanced
-                viewModel.resetPairing()
-            },
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(if (advanced) "Use guided pairing" else "Enter manually (advanced)")
+            TextButton(
+                onClick = {
+                    advanced = !advanced
+                    viewModel.resetPairing()
+                },
+            ) {
+                Text(if (advanced) "Use guided pairing" else "Enter manually (advanced)")
+            }
+            TextButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
+                Text("Import config")
+            }
         }
 
         if (advanced) {
@@ -68,6 +117,39 @@ fun PairingScreen(
         } else {
             GuidedPairing(viewModel = viewModel, existing = existing, onSaved = onSaved)
         }
+    }
+
+    pendingImport?.let { config ->
+        val devicePart = config.pairedDevice?.let { "machine \"${it.displayName}\" and " } ?: ""
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Replace configuration?") },
+            text = {
+                Text(
+                    "This will replace your current $devicePart${config.presets.size} preset(s) " +
+                        "with the imported ones. Your present configuration will be overwritten.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    applyConfig(config)
+                    pendingImport = null
+                    onImported()
+                }) { Text("Replace") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    importError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { importError = null },
+            title = { Text("Import failed") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { importError = null }) { Text("OK") } },
+        )
     }
 }
 

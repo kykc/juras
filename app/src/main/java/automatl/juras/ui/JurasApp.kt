@@ -122,6 +122,9 @@ fun JurasApp(appViewModel: AppViewModel = viewModel()) {
                         appViewModel.pairDevice(device)
                         navController.navigate(Route.Brew) { popUpTo(0) }
                     },
+                    parseConfig = { appViewModel.parseConfig(it) },
+                    applyConfig = { appViewModel.applyConfig(it) },
+                    onImported = { navController.navigate(Route.Brew) { popUpTo(0) } },
                 )
             }
             composable<Route.PresetEditor> { backStack ->
