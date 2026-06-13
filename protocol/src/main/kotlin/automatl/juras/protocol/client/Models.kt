@@ -27,12 +27,11 @@ data class AlertFlag(val bit: Int, val name: String)
 /** Decoded machine state (`@TM:50`). [rawHex] is kept for diagnostics. */
 data class MachineState(val rawHex: String, val activeAlerts: List<AlertFlag>)
 
-/** Aggregated read of everything safe to query in one session. */
+/** Aggregated read of the safe-to-query statistics (counters + maintenance). */
 data class MachineReport(
     val productCounts: List<ProductCount>,
     val maintenanceStatus: List<MaintenanceStatus>,
     val maintenanceCounters: List<MaintenanceCounter>,
-    val machineState: MachineState?,
 )
 
 /** Streamed progress during a brew (`@tb`/`@tv:` frames). */
@@ -44,6 +43,3 @@ sealed interface BrewProgress {
     /** Dispensing with live water progress. */
     data class Dispensing(val doneMl: Int, val totalMl: Int, val percent: Int) : BrewProgress
 }
-
-/** Terminal result of a brew. [completed] is true on a clean `@tf:00`/`@tp:00`. */
-data class BrewOutcome(val completed: Boolean, val statusByte: Int?)

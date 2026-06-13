@@ -227,6 +227,27 @@ Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 > client immediately reads the *previous* brew's `@tf:00` and shows "enjoy" instantly
 > (or desyncs and hangs).
 
+> **"Locked keys" (alert bit 39) = the machine isn't hung, its keypad is locked.** A
+> TCP remote session (`@TS:01`, and the `@TM:50` subscription) makes the machine **lock
+> its physical buttons** while it serves the client — and it shows *nothing* on its own
+> display to say so. Only the UDP status flag (bit 39) reveals it. So the earlier
+> "machine hangs, no buttons until a power cycle" was almost certainly a **stuck
+> remote-session lock**: a `@TS:01`/`@TM:50` session that never cleanly released (RST /
+> uncleaned subscription) left the keys locked; the power cycle just cleared it. Keep
+> remote sessions short and always released, and prefer UDP (which never locks keys).
+>
+> Consequence: **`readReport` reads neither `@TM:50` nor `@TS:01`.** The `@TM:50` push
+> subscription waited for the machine to emit `@TF` frames and hung the whole stats read
+> (up to 8 × the socket timeout) when it didn't; it's redundant now that the Status
+> screen gets live flags over UDP. And the `@TS:01` Remote Screen session it ran under
+> turned out unnecessary: **J.O.E. issues each stats command (`@TR`, `@TG:C0`, `@TG:43`)
+> standalone, with no session** (confirmed by decompilation).
+> Dropping `@TS:01` removed the keypad lock for stats and the interleaved `@TF` pushes
+> that made `request()` skip-loop and occasionally hang. **The app now opens no remote
+> session anywhere** — TCP is purely brief command/response (`@HP`, `@TP`, `@TG:FF`,
+> `@TR`/`@TG` reads) with a short read timeout; all live state is UDP. Counters/
+> maintenance are not in the UDP reply, so they stay TCP-on-demand.
+
 > **⚠ Do NOT add drain-on-close (`closeGracefully`) or flush-on-open (`flushInput`).**
 > Tried 2026-06: drain buffered input then FIN-close after each op, plus a 500 ms
 > input flush before each op, to clear the per-token backlog above. **It made the
@@ -260,10 +281,31 @@ Brewing (`@TP:`) and counter reads (`@TR:32`) require this wrapper.
 > TCP session (each phone polls independently) — and keeping TCP minimal is exactly
 > what this fragile firmware wants. Our current app streams status/progress over TCP
 > (`@TM:50` push / `@TS:01`), the heavy path that serializes on the one session and
-> stresses the machine. Candidate fix for the open multi-phone/stability issues: poll
-> status over UDP like JOE; keep TCP for `@TP` and other commands only. **Verify first
-> with a capture:** does the machine answer the UDP poll with no prior TCP auth, and do
-> the byte offsets match EF1030?
+> stresses the machine. Fix direction: poll status over UDP like JOE; keep TCP for
+> `@TP` and other commands only.
+>
+> **✓ VALIDATED on EF1030 / TT237W (2026-06).** The machine answers the UDP poll with
+> **no prior TCP auth**, and **cross-VLAN** (phone on main net, machine on isolated IoT
+> subnet) with no extra firewall rule beyond what already exists. Reply was 117 B =
+> 110 header + 7-byte alert word; payload `000400000C0000` decoded to "Coffee ready"
+> (bit 13) — byte-identical to our known-good TCP `@TF` capture, so the offsets in
+> `UdpStatusReply` are correct for this hardware. The reply also carries module fw
+> (`TT237W V08.27`), the custom name, and the machine model/fw (`EF1030…M V01.06`).
+> Implemented in `protocol/transport/JuraUdpStatusClient` + `UdpStatusReply`; the
+> **Status screen polls live over UDP** (`StatusViewModel.startLive`, ~1.5 s) while TCP
+> is used only for the on-demand statistics read.
+>
+> **Brew = commands over TCP, progress over UDP (implemented; hardware test pending).**
+> `BrewViewModel.start` does a brief TCP burst — `authenticate` then `JuraClient.startProduct`
+> (`@TP`) — and **closes immediately** (no `@TS:01`, no stream read; the machine brews
+> autonomously, confirmed by the old `forceQuit` behaviour). It then polls UDP (~1 s):
+> while `productRunning` it feeds `@TV` payloads to `BrewProgressDecoder`; when the reply
+> goes idle (`@TF`) after having run, the brew is done; if it never starts within
+> `STARTUP_TIMEOUT_MS` it reports the blocking `@TF` flag. `stop` sends `@TG:FF` in its
+> own short TCP burst. **Open question to verify on hardware:** does `@TP` start a product
+> *without* a preceding `@TS:01`? If not, re-add `@TS:01` but keep draining/closing TCP so
+> it can't backpressure-wedge the machine. `authenticate` now skips stray frames so a
+> leftover TCP frame can't be read as the auth result.
 
 ### Key commands
 | Command | Purpose |

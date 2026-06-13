@@ -20,10 +20,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +38,9 @@ import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.ui.BrewUiState
 import automatl.juras.ui.BrewViewModel
+
+/** Seconds the successful "Done" screen waits before auto-returning to the brew list. */
+private const val AUTO_CLOSE_SECONDS = 10
 
 @Composable
 fun BrewingScreen(
@@ -131,7 +136,22 @@ fun BrewingScreen(
                     },
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+                if (s.success) {
+                    // Auto-return to the brew list after a short countdown; tap to leave now.
+                    var secondsLeft by remember { mutableStateOf(AUTO_CLOSE_SECONDS) }
+                    LaunchedEffect(Unit) {
+                        while (secondsLeft > 0) {
+                            delay(1_000)
+                            secondsLeft--
+                        }
+                        onClose()
+                    }
+                    Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                        Text("Done (%02d)".format(secondsLeft))
+                    }
+                } else {
+                    Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+                }
             }
 
             is BrewUiState.Failed -> {

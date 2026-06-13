@@ -6,18 +6,23 @@ import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.BrewProgress
-import automatl.juras.protocol.client.BrewStateNames
+import automatl.juras.protocol.client.BrewProgressDecoder
 import automatl.juras.protocol.client.JuraClient
+import automatl.juras.protocol.client.MachineStateDecoder
 import automatl.juras.protocol.client.TpPayload
 import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.transport.JuraConnection
+import automatl.juras.protocol.transport.JuraUdpStatusClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 
 sealed interface BrewUiState {
     /** Before the user confirms — show preset details and a Start button. */
@@ -33,89 +38,131 @@ sealed interface BrewUiState {
     data class Failed(val message: String) : BrewUiState
 }
 
+/**
+ * Orchestrates a brew the way J.O.E. does: **commands over TCP, progress over UDP**.
+ *
+ * A brief TCP burst authenticates and fires `@TP` (then closes — the machine brews
+ * autonomously). Progress is then observed by polling the connectionless UDP status
+ * channel, so we never hold the machine's single TCP session open or stream `@TS:01`
+ * over it. Stop sends `@TG:FF` in its own short TCP burst.
+ */
 class BrewViewModel : ViewModel() {
 
     private val _state = MutableStateFlow<BrewUiState>(BrewUiState.Idle)
     val state: StateFlow<BrewUiState> = _state.asStateFlow()
 
-    private var connection: JuraConnection? = null
     private var inProgress = false
     private var brewJob: Job? = null
+    private var currentDevice: PairedDevice? = null
     @Volatile private var abandoned = false
 
     fun start(device: PairedDevice, preset: BrewPreset) {
         if (inProgress) return
         inProgress = true
         abandoned = false
+        currentDevice = device
         _state.value = BrewUiState.Connecting
         val payload = buildPayload(preset)
 
         brewJob = viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    JuraConnection(device.host, readTimeoutMs = 60_000).use { conn ->
-                        connection = conn
+            val result = runCatching {
+                // 1. Fire the brew command over TCP, then close. The machine keeps
+                //    brewing regardless of the connection.
+                withContext(Dispatchers.IO) {
+                    JuraConnection(device.host).use { conn ->
                         conn.connect()
                         val client = JuraClient(conn)
                         val auth = client.authenticate(device.credentialsOrNull())
                         check(auth is AuthResult.Authenticated) {
                             "Authentication failed — re-pair the machine."
                         }
-                        client.brew(payload) { progress ->
-                            _state.value = progress.toUiState()
-                        }
+                        client.startProduct(payload)
                     }
                 }
+                // 2. Watch the brew over UDP until it finishes.
+                awaitCompletion(device)
             }
-            // If force-abandoned, forceQuit() already cleaned up and the screen is
-            // leaving — don't overwrite state with a brew result.
             if (abandoned) return@launch
-            connection = null
             inProgress = false
             _state.value = result.fold(
-                onSuccess = { outcome ->
-                    if (outcome.completed) {
-                        BrewUiState.Done("Done — enjoy!", success = true)
-                    } else {
-                        // A non-zero finish status is a state code (same space as @tv),
-                        // e.g. 0x40 = "Fill water tank".
-                        val reason = outcome.statusByte?.let { BrewStateNames.nameFor(it) }
-                        val message = reason?.let { "Couldn't complete — $it" }
-                            ?: "Finished (status 0x%02X)".format(outcome.statusByte ?: 0)
-                        BrewUiState.Done(message, success = false)
-                    }
-                },
+                onSuccess = { it },
                 onFailure = { BrewUiState.Failed(it.message ?: "Brew failed") },
             )
         }
     }
 
-    /** Ask the machine to stop the current product (`@TG:FF`). */
+    /**
+     * Poll the UDP status channel until the product finishes. While a product runs the
+     * reply is a `@TV` progress frame; once it stops the reply is an idle `@TF`. If we
+     * never see it start, the machine likely refused (needs water, etc.) — report the
+     * blocking flag from `@TF`.
+     */
+    private suspend fun awaitCompletion(device: PairedDevice): BrewUiState {
+        val udp = JuraUdpStatusClient(device.host)
+        var seenRunning = false
+        val startedAt = System.currentTimeMillis()
+        _state.value = BrewUiState.Brewing("Starting…")
+
+        while (coroutineContext.isActive && !abandoned) {
+            val reply = withContext(Dispatchers.IO) { runCatching { udp.poll() }.getOrNull() }
+            val elapsed = System.currentTimeMillis() - startedAt
+
+            if (reply != null && reply.markerOk) {
+                if (reply.productRunning) {
+                    seenRunning = true
+                    _state.value = BrewProgressDecoder.decode(reply.payloadHex).toUiState()
+                } else if (seenRunning) {
+                    return BrewUiState.Done("Done — enjoy!", success = true)
+                } else if (elapsed > STARTUP_TIMEOUT_MS) {
+                    return refusedState(reply.payloadHex)
+                }
+            }
+            if (elapsed > MAX_BREW_MS) return BrewUiState.Failed("Brew timed out")
+            delay(POLL_INTERVAL_MS)
+        }
+        return BrewUiState.Idle
+    }
+
+    /** Describe why a product never started, using the active `@TF` flag if any. */
+    private fun refusedState(tfPayloadHex: String): BrewUiState {
+        val reason = MachineStateDecoder.decode(tfPayloadHex).activeAlerts.firstOrNull()?.name
+        return BrewUiState.Done(
+            reason?.let { "Couldn't start — $it" } ?: "Couldn't start the product",
+            success = false,
+        )
+    }
+
+    /** Ask the machine to stop the current product (`@TG:FF`) in a short TCP burst. */
     fun stop() {
-        val conn = connection ?: return
-        viewModelScope.launch(Dispatchers.IO) { runCatching { conn.send("@TG:FF") } }
+        val device = currentDevice ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                JuraConnection(device.host).use { conn ->
+                    conn.connect()
+                    val client = JuraClient(conn)
+                    client.authenticate(device.credentialsOrNull())
+                    client.cancelProduct()
+                }
+            }
+        }
+        // The UDP loop will see the machine go idle and finish the brew.
     }
 
     /**
-     * Forcibly abandon brewing **without talking to the machine** — for when the
-     * connection is wedged (e.g. a firewall dropped the return stream and reads
-     * hang). Cancels the brew coroutine and closes the socket locally; the machine
-     * keeps doing whatever it's doing. The screen should navigate away after this.
+     * Forcibly abandon brewing **without talking to the machine** — cancels the UDP
+     * watch loop locally; the machine keeps doing whatever it's doing. The screen
+     * should navigate away after this.
      */
     fun forceQuit() {
         abandoned = true
         inProgress = false
         brewJob?.cancel()
         brewJob = null
-        val conn = connection
-        connection = null
-        // Closing the socket unblocks the wedged read; no app-level frames are sent.
-        runCatching { conn?.close() }
         _state.value = BrewUiState.Idle
     }
 
     override fun onCleared() {
-        runCatching { connection?.close() }
+        brewJob?.cancel()
     }
 
     private fun buildPayload(preset: BrewPreset): String {
@@ -139,5 +186,11 @@ class BrewViewModel : ViewModel() {
             doneMl = doneMl,
             totalMl = totalMl,
         )
+    }
+
+    companion object {
+        private const val POLL_INTERVAL_MS = 1_000L
+        private const val STARTUP_TIMEOUT_MS = 15_000L
+        private const val MAX_BREW_MS = 5 * 60_000L
     }
 }

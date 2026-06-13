@@ -3,7 +3,6 @@ package automatl.juras.protocol.client
 import automatl.juras.protocol.JuraCredentials
 import automatl.juras.protocol.transport.JuraConnection
 import java.io.IOException
-import java.net.SocketTimeoutException
 
 /**
  * High-level operations over an open [JuraConnection].
@@ -14,97 +13,56 @@ import java.net.SocketTimeoutException
  */
 class JuraClient(private val conn: JuraConnection) {
 
-    /** Send the `@HP:` handshake. Pass `null` to initiate pairing (`@HP:,,`). */
+    /**
+     * Send the `@HP:` handshake. Pass `null` to initiate pairing (`@HP:,,`).
+     *
+     * Skips any unsolicited/stale frames that precede the `@hp` reply so a leftover
+     * frame from a prior connection can't be mistaken for the auth result.
+     */
     fun authenticate(credentials: JuraCredentials?): AuthResult {
         conn.send(credentials?.hpCommand() ?: JuraCredentials.PAIRING_COMMAND)
-        val resp = conn.receive()
-        return when {
-            resp.startsWith("@hp4:") -> AuthResult.PinRequired(resp.substring(5))
-            resp.startsWith("@hp4") -> AuthResult.Authenticated
-            else -> AuthResult.Rejected(resp)
+        repeat(MAX_SKIP_FRAMES) {
+            val resp = conn.receive()
+            when {
+                resp.startsWith("@hp4:") -> return AuthResult.PinRequired(resp.substring(5))
+                resp.startsWith("@hp4") -> return AuthResult.Authenticated
+                resp.startsWith("@hp") -> return AuthResult.Rejected(resp) // @hp5 / other @hp*
+                // else: unsolicited frame (@tf/@tv/@ts/…), skip and keep reading.
+            }
         }
+        return AuthResult.Rejected("no @hp response")
     }
 
     /**
-     * Start a product and stream progress until it finishes. Wraps the brew in a
-     * Remote Screen session (`@TS:01` … `@TS:00`) and dispatches `@tb`/`@tv:`
-     * frames to [onProgress]. Blocking — run off the main thread. Use a connection
-     * with a long read timeout (brewing has gaps between frames).
-     *
-     * [payload] is the 32-hex `@TP:` body from [TpPayload]. To stop a brew in
-     * progress, send `@TG:FF` on the same connection from another thread.
+     * Start a product (`@TP`). **Fire-and-forget:** the machine brews autonomously and
+     * keeps going regardless of this TCP connection, so we neither open a Remote Screen
+     * session (`@TS:01`) nor read a reply — progress is observed out-of-band over UDP
+     * (see [automatl.juras.protocol.transport.JuraUdpStatusClient]). The caller can close
+     * the connection immediately after. [payload] is the 32-hex `@TP:` body from
+     * [TpPayload].
      */
-    fun brew(payload: String, onProgress: (BrewProgress) -> Unit): BrewOutcome {
-        conn.send("@TS:01")
-        conn.receive()
-        try {
-            conn.send("@TP:$payload")
-            while (true) {
-                val resp = try {
-                    conn.receive()
-                } catch (_: SocketTimeoutException) {
-                    return BrewOutcome(completed = true, statusByte = null)
-                }
-                val lower = resp.lowercase()
-                when {
-                    lower.startsWith("@tb") -> onProgress(BrewProgress.Started)
-                    lower.startsWith("@tv:") -> onProgress(decodeBrewState(resp.substring(4)))
-                    lower.startsWith("@tf:") -> {
-                        val status = resp.substring(4).take(2).toIntOrNull(16)
-                        return BrewOutcome(completed = status == 0, statusByte = status)
-                    }
-                    lower.startsWith("@tp:00") -> return BrewOutcome(completed = true, statusByte = 0)
-                    // @tp echo, @ts session signals: ignore and keep reading.
-                }
-            }
-        } finally {
-            runCatching {
-                conn.send("@TS:00")
-                conn.receive()
-            }
-        }
+    fun startProduct(payload: String) {
+        conn.send("@TP:$payload")
     }
 
-    /** Decode a `@tv:` progress payload. Mirrors `decode_tv` in `../jura.py`. */
-    private fun decodeBrewState(dataHex: String): BrewProgress {
-        val clean = dataHex.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
-        val hex = (clean + "F".repeat(32)).substring(0, 32)
-        val b = IntArray(16) { hex.substring(it * 2, it * 2 + 2).toInt(16) }
-        val state = b[0]
-        return if (state in BrewStateNames.DISPENSING_STATES) {
-            BrewProgress.Dispensing(doneMl = b[4] * 5, totalMl = b[5] * 5, percent = minOf(b[14], 100))
-        } else {
-            BrewProgress.Phase(state, BrewStateNames.nameFor(state) ?: "State 0x%02X".format(state))
-        }
+    /** Cancel the current product (`@TG:FF`). Fire-and-forget, like [startProduct]. */
+    fun cancelProduct() {
+        conn.send("@TG:FF")
     }
 
-    /** Read everything that is safe and idempotent. */
+    /** Read the statistics that are safe and idempotent (counters + maintenance). */
     fun readReport(): MachineReport {
-        // Statistics are simple request/response and are wrapped in a session. Each
-        // sub-read is independently guarded so one hiccup doesn't drop the rest.
-        val report = withSession {
-            MachineReport(
-                productCounts = runCatching { readProductCounters() }.getOrDefault(emptyList()),
-                maintenanceStatus = runCatching { readMaintenanceStatus() }.getOrDefault(emptyList()),
-                maintenanceCounters = runCatching { readMaintenanceCounters() }.getOrDefault(emptyList()),
-                machineState = null,
-            )
-        }
-        // Machine state is a *streaming* subscription (@TM:50 → @TF: pushes), so
-        // it is read last and outside the session: once subscribed, the machine
-        // keeps pushing frames until disconnect, which would otherwise pollute
-        // subsequent request/response reads.
-        return report.copy(machineState = runCatching { readMachineState() }.getOrNull())
-    }
-
-    /** Wrap [block] in a Remote Screen session (`@TS:01` … `@TS:00`). */
-    private fun <T> withSession(block: () -> T): T {
-        request("@TS:01", "@ts")
-        try {
-            return block()
-        } finally {
-            runCatching { request("@TS:00", "@ts") }
-        }
+        // Plain request/response reads — **no** Remote Screen session (`@TS:01`). J.O.E.
+        // issues each of these (`@TR`/`@TG`) as a standalone command with no session, so
+        // we don't need one either. Dropping it avoids locking the keypad and, crucially,
+        // the `@TF` push frames a session would interleave — those made `request()`
+        // skip-loop and occasionally hang. Each sub-read is guarded so one hiccup doesn't
+        // drop the rest. Live machine flags come from UDP, not here.
+        return MachineReport(
+            productCounts = runCatching { readProductCounters() }.getOrDefault(emptyList()),
+            maintenanceStatus = runCatching { readMaintenanceStatus() }.getOrDefault(emptyList()),
+            maintenanceCounters = runCatching { readMaintenanceCounters() }.getOrDefault(emptyList()),
+        )
     }
 
     /**
@@ -178,24 +136,6 @@ class JuraClient(private val conn: JuraConnection) {
         return out
     }
 
-    // ── machine state (@TM:50 → @TF:) ────────────────────────────────────────
-
-    // @TM:50 subscribes to status; the machine acks (e.g. `@tm:D0`) and then
-    // pushes `@TF:<14 hex>` frames periodically until disconnect. Each push is a
-    // 7-byte (56-bit) alert word. Bit numbering is per-byte, MSB-first: alert bit
-    // N is byte[N/8], mask 0x80 >> (N % 8). Confirmed on EF1030 hardware (tank out
-    // → bit 1 "fill water"; ready → bit 13 "coffee ready").
-    private fun readMachineState(): MachineState {
-        conn.send("@TM:50")
-        repeat(MAX_STATE_FRAMES) {
-            val resp = conn.receive()
-            if (resp.lowercase().startsWith("@tf:")) {
-                return MachineStateDecoder.decode(resp.substring(4).trim())
-            }
-        }
-        return MachineState("", emptyList())
-    }
-
     companion object {
         // Product code -> display name (EF1030 / Jura E6). See CLAUDE.md §5.
         private val STAT_SLOTS = listOf(
@@ -219,9 +159,6 @@ class JuraClient(private val conn: JuraConnection) {
             "Cleaning", "Filter change", "Descaling",
             "Cappu rinse", "Coffee rinse", "Cappu clean",
         )
-
-        /** Max status frames to read before giving up waiting for the first @TF: push. */
-        private const val MAX_STATE_FRAMES = 8
 
         /** Max unsolicited frames to skip while awaiting a specific command's response. */
         private const val MAX_SKIP_FRAMES = 24

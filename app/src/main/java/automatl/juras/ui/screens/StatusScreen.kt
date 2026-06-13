@@ -2,6 +2,7 @@ package automatl.juras.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,8 +17,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,6 +34,10 @@ import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.MachineReport
 import automatl.juras.ui.ReadState
 import automatl.juras.ui.StatusViewModel
+import automatl.juras.ui.UdpState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun StatusScreen(
@@ -36,6 +46,15 @@ fun StatusScreen(
     viewModel: StatusViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val udpState by viewModel.udp.collectAsStateWithLifecycle()
+
+    // Live UDP polling runs only while this screen is shown for a paired device.
+    if (device != null) {
+        DisposableEffect(device) {
+            viewModel.startLive(device)
+            onDispose { viewModel.stopLive() }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -56,15 +75,102 @@ fun StatusScreen(
 
         Text("${device.displayName} · ${device.host}", style = MaterialTheme.typography.bodyMedium)
 
+        UdpSection(udpState)
+
+        Spacer(Modifier.height(4.dp))
+        HorizontalDivider()
+        Text("Statistics", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Counters and maintenance are read over TCP on demand.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Button(
             onClick = { viewModel.refresh(device) },
             enabled = state != ReadState.Loading,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (state == ReadState.Loading) "Reading…" else "Read machine")
+            Text(if (state == ReadState.Loading) "Reading…" else "Read statistics (TCP)")
         }
 
         ResultSection(state)
+    }
+}
+
+@Composable
+private fun UdpSection(state: UdpState) {
+    when (state) {
+        UdpState.Idle -> Unit
+        UdpState.Loading -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(28.dp))
+        }
+
+        is UdpState.Error -> Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "No live status", style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(state.message, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "The machine isn't answering the UDP poll (firewall/subnet, or not " +
+                        "on WiFi). Retrying…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        is UdpState.Success -> Card(modifier = Modifier.fillMaxWidth()) {
+            val reply = state.reply
+            var showRaw by remember { mutableStateOf(false) }
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    if (reply.markerOk) "Live status" else "Live status (unrecognised reply)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (reply.markerOk) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    "Received ${formatClock(state.receivedAtMillis)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Section(if (reply.productRunning) "Brewing (@TV)" else "Machine flags (@TF)")
+                val decoded = state.decoded
+                when {
+                    reply.productRunning -> KeyValue("Payload", reply.payloadHex.ifEmpty { "—" })
+                    decoded == null -> EmptyLine()
+                    decoded.activeAlerts.isEmpty() -> KeyValue("Flags", "none")
+                    else -> decoded.activeAlerts.forEach { KeyValue("bit ${it.bit}", it.name) }
+                }
+
+                Section("Machine")
+                KeyValue("Module", reply.name.ifEmpty { "—" })
+                KeyValue("Name", reply.machineId.ifEmpty { "—" })
+
+                TextButton(
+                    onClick = { showRaw = !showRaw },
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Text(if (showRaw) "Hide raw packet" else "Show raw packet")
+                }
+                if (showRaw) {
+                    Text(
+                        reply.rawHex.ifEmpty { "—" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -139,16 +245,6 @@ private fun SuccessCard(auth: AuthResult, report: MachineReport?) {
                 Section("Maintenance counters (cycles)")
                 if (report.maintenanceCounters.isEmpty()) EmptyLine()
                 report.maintenanceCounters.forEach { KeyValue(it.name, it.cycles.toString()) }
-
-                Section("Machine flags")
-                val machineState = report.machineState
-                if (machineState == null) {
-                    EmptyLine()
-                } else {
-                    if (machineState.activeAlerts.isEmpty()) KeyValue("Flags", "none")
-                    machineState.activeAlerts.forEach { KeyValue("bit ${it.bit}", it.name) }
-                    KeyValue("raw", machineState.rawHex.ifEmpty { "—" })
-                }
             }
         }
     }
@@ -183,3 +279,7 @@ private fun EmptyLine() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+private val clockFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
+private fun formatClock(millis: Long): String = clockFormat.format(Date(millis))
