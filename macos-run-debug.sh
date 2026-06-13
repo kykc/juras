@@ -3,6 +3,6 @@ set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-echo "Building unsigned debug app bundle..."
+echo "Building and running debug app bundle..."
 
-${SCRIPT_DIR}/gradlew :desktopApp:createDistributable
+${SCRIPT_DIR}/gradlew :desktopApp:run
