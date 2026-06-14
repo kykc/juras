@@ -1,17 +1,18 @@
 package automatl.juras.protocol.client
 
 import automatl.juras.protocol.JuraCredentials
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.transport.JuraConnection
 import java.io.IOException
 
 /**
  * High-level operations over an open [JuraConnection].
  *
- * Stateless aside from the connection it borrows. Reads are request/response;
- * [brew] streams progress until completion. Parsing mirrors the reference client
- * (`../jura.py`) and the protocol reference (`CLAUDE.md` §5).
+ * Stateless aside from the connection and [catalog] it holds. Reads are
+ * request/response; [startProduct] is fire-and-forget. Parsing mirrors the
+ * reference client (`../jura.py`) and the protocol reference (`CLAUDE.md` §5).
  */
-class JuraClient(private val conn: JuraConnection) {
+class JuraClient(private val conn: JuraConnection, private val catalog: MachineCatalog) {
 
     /**
      * Send the `@HP:` handshake. Pass `null` to initiate pairing (`@HP:,,`).
@@ -88,6 +89,7 @@ class JuraClient(private val conn: JuraConnection) {
     // ── product counters (@TR:32) ────────────────────────────────────────────
 
     private fun readProductCounters(): List<ProductCount> {
+        val statSlots = listOf(0x00 to "Total") + catalog.products.map { it.code to it.name }
         val combined = StringBuilder(256)
         for (page in 0 until 16) {
             val resp = request("@TR:32,%02X".format(page), "@tr:32")
@@ -97,7 +99,7 @@ class JuraClient(private val conn: JuraConnection) {
         }
         val data = combined.toString()
         val out = ArrayList<ProductCount>()
-        for ((code, name) in STAT_SLOTS) {
+        for ((code, name) in statSlots) {
             val off = code * 4
             if (off + 4 <= data.length) {
                 val value = data.substring(off, off + 4).toIntOrNull(16) ?: continue
@@ -113,7 +115,7 @@ class JuraClient(private val conn: JuraConnection) {
         val resp = request("@TG:C0", "@tg:c0")
         val data = resp.substring(6)
         val out = ArrayList<MaintenanceStatus>()
-        for ((i, name) in C0_FIELDS.withIndex()) {
+        for ((i, name) in catalog.maintenanceStatusFields.withIndex()) {
             if (i * 2 + 2 > data.length) break
             val value = data.substring(i * 2, i * 2 + 2).toIntOrNull(16) ?: continue
             if (value == 0xFF) out.add(MaintenanceStatus(name, null, notApplicable = true))
@@ -128,7 +130,7 @@ class JuraClient(private val conn: JuraConnection) {
         val resp = request("@TG:43", "@tg:43")
         val data = resp.substring(6)
         val out = ArrayList<MaintenanceCounter>()
-        for ((i, name) in TG43_FIELDS.withIndex()) {
+        for ((i, name) in catalog.maintenanceCounterFields.withIndex()) {
             if (i * 4 + 4 > data.length) break
             val value = data.substring(i * 4, i * 4 + 4).toIntOrNull(16) ?: continue
             out.add(MaintenanceCounter(name, value))
@@ -137,30 +139,6 @@ class JuraClient(private val conn: JuraConnection) {
     }
 
     companion object {
-        // Product code -> display name (EF1030 / Jura E6). See CLAUDE.md §5.
-        private val STAT_SLOTS = listOf(
-            0x00 to "Total",
-            0x02 to "Espresso",
-            0x03 to "Coffee",
-            0x04 to "Cappuccino",
-            0x06 to "Espresso Macchiato",
-            0x08 to "Milk Foam",
-            0x0D to "Hot Water",
-            0x0F to "Powder Product",
-            0x28 to "Café Barista",
-            0x29 to "Barista Lungo",
-            0x31 to "2 Espressi",
-            0x36 to "2 Coffee",
-        )
-
-        // Positional ordering per the machine XML / MaintenanceStatisticsParser.
-        private val C0_FIELDS = listOf("Cleaning", "Filter change", "Descaling")
-        private val TG43_FIELDS = listOf(
-            "Cleaning", "Filter change", "Descaling",
-            "Cappu rinse", "Coffee rinse", "Cappu clean",
-        )
-
-        /** Max unsolicited frames to skip while awaiting a specific command's response. */
         private const val MAX_SKIP_FRAMES = 24
     }
 }

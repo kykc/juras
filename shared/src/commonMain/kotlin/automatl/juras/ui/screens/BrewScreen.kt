@@ -38,8 +38,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import automatl.juras.domain.AppState
 import automatl.juras.domain.BrewPreset
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.Temperature
-import automatl.juras.protocol.product.Ef1030Catalog
 import juras.shared.generated.resources.Res
 import juras.shared.generated.resources.ic_drag_indicator
 import org.jetbrains.compose.resources.painterResource
@@ -49,6 +49,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun BrewScreen(
     state: AppState,
+    catalog: MachineCatalog,
     onBrew: (BrewPreset) -> Unit,
     onEdit: (BrewPreset) -> Unit,
     onAddPreset: () -> Unit,
@@ -56,8 +57,15 @@ fun BrewScreen(
     onReorder: (List<BrewPreset>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var items by remember { mutableStateOf(state.presets) }
-    LaunchedEffect(state.presets) { items = state.presets }
+    val visiblePresets = remember(state.presets, catalog.modelId) {
+        state.presets.filter { it.model == catalog.modelId }
+    }
+    val hiddenPresets = remember(state.presets, catalog.modelId) {
+        state.presets.filter { it.model != catalog.modelId }
+    }
+    val hiddenCount = hiddenPresets.size
+    var items by remember { mutableStateOf(visiblePresets) }
+    LaunchedEffect(visiblePresets) { items = visiblePresets }
 
     val lazyListState = rememberLazyListState()
     val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -105,6 +113,13 @@ fun BrewScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (hiddenCount > 0) {
+                        Text(
+                            "$hiddenCount preset${if (hiddenCount == 1) "" else "s"} for other machines hidden",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (items.isEmpty()) {
                         Text(
                             "No presets yet. Tap + to add one.",
@@ -119,6 +134,7 @@ fun BrewScreen(
                 ReorderableItem(reorderState, key = preset.id) { isDragging ->
                     PresetCard(
                         preset = preset,
+                        catalog = catalog,
                         dragging = isDragging,
                         onEdit = { onEdit(preset) },
                         onBrew = { onBrew(preset) },
@@ -130,7 +146,7 @@ fun BrewScreen(
                                     onDragStarted = {
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     },
-                                    onDragStopped = { onReorder(items) },
+                                    onDragStopped = { onReorder(items + hiddenPresets) },
                                 ),
                             ) {
                                 Icon(
@@ -151,12 +167,13 @@ fun BrewScreen(
 @Composable
 private fun PresetCard(
     preset: BrewPreset,
+    catalog: MachineCatalog,
     dragging: Boolean,
     onEdit: () -> Unit,
     onBrew: () -> Unit,
     dragHandle: @Composable () -> Unit,
 ) {
-    val product = Ef1030Catalog.byCode(preset.productCode)
+    val product = catalog.productByCode(preset.productCode)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -181,15 +198,15 @@ private fun PresetCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(presetSummary(preset), style = MaterialTheme.typography.bodyMedium)
+                Text(presetSummary(preset, catalog), style = MaterialTheme.typography.bodyMedium)
             }
             FilledTonalButton(onClick = onBrew) { Text("Brew") }
         }
     }
 }
 
-private fun presetSummary(preset: BrewPreset): String {
-    val product = Ef1030Catalog.byCode(preset.productCode)
+private fun presetSummary(preset: BrewPreset, catalog: MachineCatalog): String {
+    val product = catalog.productByCode(preset.productCode)
     val parts = mutableListOf<String>()
     if (product == null || product.hasWater) parts += "${preset.waterMl} ml"
     if (product == null || product.hasStrength) parts += "strength ${preset.strength}"

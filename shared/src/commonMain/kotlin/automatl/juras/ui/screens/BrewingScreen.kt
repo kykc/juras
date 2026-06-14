@@ -34,7 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import automatl.juras.domain.BrewPreset
 import automatl.juras.domain.PairedDevice
-import automatl.juras.protocol.product.Ef1030Catalog
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.ui.BrewUiState
 import automatl.juras.ui.BrewViewModel
 import kotlinx.coroutines.delay
@@ -45,6 +45,7 @@ private const val AUTO_CLOSE_SECONDS = 10
 fun BrewingScreen(
     preset: BrewPreset?,
     device: PairedDevice?,
+    catalog: MachineCatalog,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BrewViewModel = viewModel { BrewViewModel() },
@@ -67,7 +68,7 @@ fun BrewingScreen(
 
         Text(preset.name, style = MaterialTheme.typography.headlineMedium)
         Text(
-            "${productName(preset)} · ${brewSummary(preset)}",
+            "${productName(preset, catalog)} · ${brewSummary(preset, catalog)}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -211,11 +212,11 @@ private fun StopButton(onStop: () -> Unit, onForceQuit: () -> Unit) {
     }
 }
 
-private fun productName(preset: BrewPreset): String =
-    Ef1030Catalog.byCode(preset.productCode)?.name ?: "Product 0x%02X".format(preset.productCode)
+private fun productName(preset: BrewPreset, catalog: MachineCatalog): String =
+    catalog.productByCode(preset.productCode)?.name ?: "Product 0x%02X".format(preset.productCode)
 
-private fun brewSummary(preset: BrewPreset): String {
-    val product = Ef1030Catalog.byCode(preset.productCode)
+private fun brewSummary(preset: BrewPreset, catalog: MachineCatalog): String {
+    val product = catalog.productByCode(preset.productCode)
     val parts = mutableListOf<String>()
     if (product == null || product.hasWater) parts += "${preset.waterMl} ml"
     if (product == null || product.hasStrength) parts += "strength ${preset.strength}"

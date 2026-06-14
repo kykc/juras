@@ -8,9 +8,9 @@ import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.BrewProgress
 import automatl.juras.protocol.client.BrewProgressDecoder
 import automatl.juras.protocol.client.JuraClient
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.client.MachineStateDecoder
 import automatl.juras.protocol.client.TpPayload
-import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.transport.JuraConnection
 import automatl.juras.protocol.transport.JuraUdpStatusClient
 import kotlinx.coroutines.Dispatchers
@@ -62,14 +62,15 @@ class BrewViewModel : ViewModel() {
         abandoned = false
         currentDevice = device
         _state.value = BrewUiState.Connecting
-        val payload = buildPayload(preset)
+        val payload = buildPayload(preset, device)
 
         brewJob = viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
+                    val catalog = MachineCatalog.forModel(device.model)
                     JuraConnection(device.host).use { conn ->
                         conn.connect()
-                        val client = JuraClient(conn)
+                        val client = JuraClient(conn, catalog)
                         val auth = client.authenticate(device.credentialsOrNull())
                         check(auth is AuthResult.Authenticated) {
                             "Authentication failed — re-pair the machine."
@@ -107,11 +108,12 @@ class BrewViewModel : ViewModel() {
             if (reply != null && reply.markerOk) {
                 if (reply.productRunning) {
                     seenRunning = true
-                    _state.value = BrewProgressDecoder.decode(reply.payloadHex).toUiState()
+                    val catalog = MachineCatalog.forModel(device.model)
+                    _state.value = BrewProgressDecoder.decode(reply.payloadHex, catalog).toUiState()
                 } else if (seenRunning) {
                     return BrewUiState.Done("Done — enjoy!", success = true)
                 } else if (elapsed > STARTUP_TIMEOUT_MS) {
-                    return refusedState(reply.payloadHex)
+                    return refusedState(reply.payloadHex, device)
                 }
             }
             if (elapsed > MAX_BREW_MS) return BrewUiState.Failed("Brew timed out")
@@ -120,8 +122,9 @@ class BrewViewModel : ViewModel() {
         return BrewUiState.Idle
     }
 
-    private fun refusedState(tfPayloadHex: String): BrewUiState {
-        val reason = MachineStateDecoder.decode(tfPayloadHex).activeAlerts.firstOrNull()?.name
+    private fun refusedState(tfPayloadHex: String, device: PairedDevice): BrewUiState {
+        val catalog = MachineCatalog.forModel(device.model)
+        val reason = MachineStateDecoder.decode(tfPayloadHex, catalog).activeAlerts.firstOrNull()?.name
         return BrewUiState.Done(
             reason?.let { "Couldn't start — $it" } ?: "Couldn't start the product",
             success = false,
@@ -132,9 +135,10 @@ class BrewViewModel : ViewModel() {
         val device = currentDevice ?: return
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
+                val catalog = MachineCatalog.forModel(device.model)
                 JuraConnection(device.host).use { conn ->
                     conn.connect()
-                    val client = JuraClient(conn)
+                    val client = JuraClient(conn, catalog)
                     client.authenticate(device.credentialsOrNull())
                     client.cancelProduct()
                 }
@@ -158,8 +162,9 @@ class BrewViewModel : ViewModel() {
         brewJob?.cancel()
     }
 
-    private fun buildPayload(preset: BrewPreset): String {
-        val product = Ef1030Catalog.byCode(preset.productCode)
+    private fun buildPayload(preset: BrewPreset, device: PairedDevice): String {
+        val catalog = MachineCatalog.forModel(device.model)
+        val product = catalog.productByCode(preset.productCode)
         return TpPayload.build(
             productCode = preset.productCode,
             strength = if (product == null || product.hasStrength) preset.strength else null,

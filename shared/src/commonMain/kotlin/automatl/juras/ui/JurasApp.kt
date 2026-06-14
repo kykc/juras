@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import automatl.juras.domain.AppStateStore
 import automatl.juras.domain.DarkModePreference
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.ui.theme.JurasTheme
 import automatl.juras.ui.screens.BrewScreen
 import automatl.juras.ui.screens.BrewingScreen
@@ -86,6 +87,10 @@ fun JurasApp(store: AppStateStore) {
     val currentDestination = backStackEntry?.destination
     val showBottomBar = TABS.any { currentDestination.isRoute(it.route) }
 
+    val catalog = remember(state.pairedDevice?.model) {
+        MachineCatalog.forModel(state.pairedDevice?.model ?: "EF1030")
+    }
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) JurasBottomBar(navController, currentDestination)
@@ -99,6 +104,7 @@ fun JurasApp(store: AppStateStore) {
             composable<Route.Brew> {
                 BrewScreen(
                     state = state,
+                    catalog = catalog,
                     onBrew = { preset -> navController.navigate(Route.Brewing(preset.id)) },
                     onEdit = { preset -> navController.navigate(Route.PresetEditor(preset.id)) },
                     onAddPreset = { navController.navigate(Route.PresetEditor()) },
@@ -145,6 +151,7 @@ fun JurasApp(store: AppStateStore) {
                 val presetId = backStack.toRoute<Route.PresetEditor>().presetId
                 PresetEditorScreen(
                     preset = presetId?.let { id -> state.presets.firstOrNull { it.id == id } },
+                    catalog = catalog,
                     onSave = { preset ->
                         appViewModel.upsertPreset(preset)
                         navController.popBackStack()
@@ -159,6 +166,7 @@ fun JurasApp(store: AppStateStore) {
             composable<Route.QuickBrew> {
                 PresetEditorScreen(
                     preset = null,
+                    catalog = catalog,
                     onBrewNow = { preset ->
                         appViewModel.setPendingBrew(preset)
                         navController.navigate(Route.Brewing()) {
@@ -179,6 +187,7 @@ fun JurasApp(store: AppStateStore) {
                 BrewingScreen(
                     preset = preset,
                     device = state.pairedDevice,
+                    catalog = catalog,
                     onClose = { navController.popBackStack() },
                 )
             }

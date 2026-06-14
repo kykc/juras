@@ -30,8 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import automatl.juras.domain.BrewPreset
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.Temperature
-import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.product.Product
 import kotlin.math.roundToInt
 import kotlin.uuid.ExperimentalUuidApi
@@ -46,6 +46,7 @@ import kotlin.uuid.Uuid
 @Composable
 fun PresetEditorScreen(
     preset: BrewPreset?,
+    catalog: MachineCatalog,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     onSave: ((BrewPreset) -> Unit)? = null,
@@ -53,7 +54,7 @@ fun PresetEditorScreen(
     onBrewNow: ((BrewPreset) -> Unit)? = null,
 ) {
     val fallback = remember(preset) {
-        Ef1030Catalog.byCode(preset?.productCode ?: -1) ?: Ef1030Catalog.products.first()
+        catalog.productByCode(preset?.productCode ?: -1) ?: catalog.products.first()
     }
 
     var productCode by rememberSaveable { mutableStateOf(preset?.productCode ?: fallback.code) }
@@ -68,7 +69,7 @@ fun PresetEditorScreen(
     var milk by rememberSaveable { mutableStateOf(preset?.milkMl ?: fallback.milk?.default ?: 0) }
     var bypass by rememberSaveable { mutableStateOf(preset?.bypassMl ?: fallback.bypass?.default ?: 0) }
 
-    val product = Ef1030Catalog.byCode(productCode) ?: fallback
+    val product = catalog.productByCode(productCode) ?: fallback
 
     Column(
         modifier = modifier
@@ -95,7 +96,7 @@ fun PresetEditorScreen(
         }
 
         FieldLabel("Product")
-        ProductDropdown(selected = product) { chosen ->
+        ProductDropdown(selected = product, catalog = catalog) { chosen ->
             if (label.isBlank() || label == product.name) label = chosen.name
             productCode = chosen.code
             chosen.strength?.let { strength = it.default }
@@ -168,6 +169,7 @@ fun PresetEditorScreen(
                 temperature = temperature,
                 milkMl = if (product.hasMilk) milk else null,
                 bypassMl = if (product.hasBypass) bypass else null,
+                model = preset?.model ?: catalog.modelId,
             )
         }
 
@@ -203,7 +205,7 @@ fun PresetEditorScreen(
 }
 
 @Composable
-private fun ProductDropdown(selected: Product, onSelect: (Product) -> Unit) {
+private fun ProductDropdown(selected: Product, catalog: MachineCatalog, onSelect: (Product) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
@@ -211,7 +213,7 @@ private fun ProductDropdown(selected: Product, onSelect: (Product) -> Unit) {
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            Ef1030Catalog.products.forEach { product ->
+            catalog.products.forEach { product ->
                 DropdownMenuItem(
                     text = { Text(product.name) },
                     onClick = {

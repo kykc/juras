@@ -64,6 +64,8 @@ data class BrewPreset(
     val temperature: Temperature,
     val milkMl: Int? = null,
     val bypassMl: Int? = null,
+    /** Machine model this preset was created for. Missing in old JSON → defaults to "EF1030". */
+    val model: String = "EF1030",
 )
 
 /**
@@ -71,7 +73,7 @@ data class BrewPreset(
  * in the machine's catalogue, at the product's factory defaults.
  */
 object DefaultPresets {
-    fun forProducts(products: List<Product>): List<BrewPreset> = products.map { product ->
+    fun forProducts(products: List<Product>, model: String): List<BrewPreset> = products.map { product ->
         BrewPreset(
             id = "seed-%02X".format(product.code),
             name = product.name,
@@ -81,6 +83,7 @@ object DefaultPresets {
             temperature = product.defaultTemperature ?: Temperature.NORMAL,
             milkMl = product.milk?.default,
             bypassMl = product.bypass?.default,
+            model = model,
         )
     }
 }

@@ -10,7 +10,7 @@ import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.DefaultPresets
 import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
-import automatl.juras.protocol.product.Ef1030Catalog
+import automatl.juras.protocol.MachineCatalog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +38,8 @@ class AppViewModel(private val store: AppStateStore) : ViewModel() {
 
     fun pairDevice(device: PairedDevice) {
         viewModelScope.launch {
-            store.pairDevice(device, DefaultPresets.forProducts(Ef1030Catalog.products))
+            val catalog = MachineCatalog.forModel(device.model)
+            store.pairDevice(device, DefaultPresets.forProducts(catalog.products, catalog.modelId))
         }
     }
 

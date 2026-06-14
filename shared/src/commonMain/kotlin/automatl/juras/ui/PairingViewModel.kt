@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import automatl.juras.domain.PairedDevice
 import automatl.juras.protocol.JuraCredentials
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.JuraClient
 import automatl.juras.protocol.discovery.DiscoveredMachine
@@ -84,7 +85,7 @@ class PairingViewModel : ViewModel() {
                     val conn = JuraConnection(host, readTimeoutMs = 90_000)
                     connection = conn
                     conn.connect()
-                    JuraClient(conn).authenticate(JuraCredentials(setupPin.trim(), nameHex, token = ""))
+                    JuraClient(conn, MachineCatalog.forModel("EF1030")).authenticate(JuraCredentials(setupPin.trim(), nameHex, token = ""))
                 }
             }
             withContext(Dispatchers.IO) { closeConnection() }

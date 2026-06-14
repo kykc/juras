@@ -7,6 +7,7 @@ import automatl.juras.protocol.client.AuthResult
 import automatl.juras.protocol.client.JuraClient
 import automatl.juras.protocol.client.MachineReport
 import automatl.juras.protocol.client.MachineState
+import automatl.juras.protocol.MachineCatalog
 import automatl.juras.protocol.client.MachineStateDecoder
 import automatl.juras.protocol.transport.JuraConnection
 import automatl.juras.protocol.transport.JuraUdpStatusClient
@@ -65,8 +66,9 @@ class StatusViewModel : ViewModel() {
                 val result = withContext(Dispatchers.IO) {
                     runCatching {
                         val reply = JuraUdpStatusClient(device.host).poll()
+                        val catalog = MachineCatalog.forModel(device.model)
                         val decoded = if (!reply.productRunning && reply.payloadHex.isNotEmpty()) {
-                            runCatching { MachineStateDecoder.decode(reply.payloadHex) }.getOrNull()
+                            runCatching { MachineStateDecoder.decode(reply.payloadHex, catalog) }.getOrNull()
                         } else {
                             null
                         }
@@ -108,9 +110,10 @@ class StatusViewModel : ViewModel() {
     }
 
     private fun performRead(device: PairedDevice): ReadState {
+        val catalog = MachineCatalog.forModel(device.model)
         JuraConnection(host = device.host, readTimeoutMs = 6_000).use { conn ->
             conn.connect()
-            val client = JuraClient(conn)
+            val client = JuraClient(conn, catalog)
             return when (val auth = client.authenticate(device.credentialsOrNull())) {
                 is AuthResult.Authenticated -> ReadState.Success(auth, client.readReport())
                 else -> ReadState.Success(auth, null)
