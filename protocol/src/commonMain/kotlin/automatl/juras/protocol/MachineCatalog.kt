@@ -25,10 +25,22 @@ data class MachineCatalog(
     fun productByCode(code: Int): Product? = products.firstOrNull { it.code == code }
 
     companion object {
+        @Volatile private var registry: Map<String, MachineCatalog> = emptyMap()
+
         /**
-         * Returns the catalog for [modelId].
-         * Phase 1: always returns [Ef1030Catalog]. Phase 2 will parse the model's XML.
+         * Register a catalog loaded from a JSON file. Overwrites any previous entry
+         * for the same [MachineCatalog.modelId]. Called by `CatalogLoader` at startup.
          */
-        fun forModel(modelId: String): MachineCatalog = Ef1030Catalog
+        fun register(catalog: MachineCatalog) {
+            registry = registry + (catalog.modelId to catalog)
+        }
+
+        /**
+         * Returns the catalog for [modelId] from the runtime registry, falling back to
+         * the hardcoded [Ef1030Catalog] for EF1030 (or as a last-resort default for any
+         * unknown model before JSON files have loaded).
+         */
+        fun forModel(modelId: String): MachineCatalog =
+            registry[modelId] ?: if (modelId == "EF1030") Ef1030Catalog else registry["EF1030"] ?: Ef1030Catalog
     }
 }

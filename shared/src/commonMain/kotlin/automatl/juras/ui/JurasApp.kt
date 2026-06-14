@@ -14,6 +14,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -60,6 +61,8 @@ private val TABS = listOf(
 
 @Composable
 fun JurasApp(store: AppStateStore) {
+    LaunchedEffect(Unit) { CatalogLoader.loadAll() }
+
     val appViewModel: AppViewModel = viewModel { AppViewModel(store) }
     val appState by appViewModel.state.collectAsStateWithLifecycle()
     val state = appState
