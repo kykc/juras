@@ -29,8 +29,12 @@ So, I performed duties of:
 * Product Owner
 * Tester
 * Expert in reverse engineering
+* Code reviewer
 
 Actual code was produced by LLM in its entirety, from *A* to *Z*.
+That being sad, this wasn't "Check Norris mode" session where I 
+would just answer "yes" to every proposal. I'm capable of
+reading the resulting code and I reviewed it to the best of my abilities.
 
 ## Features
 
