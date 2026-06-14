@@ -51,7 +51,7 @@
     },
     {
       "code": 40,
-      "name": "Cafe Barista (JOE ONLY)",
+      "name": "Cafe Barista (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 2,
@@ -75,7 +75,7 @@
     },
     {
       "code": 41,
-      "name": "Barista Lungo (JOE ONLY)",
+      "name": "Barista Lungo (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 2,

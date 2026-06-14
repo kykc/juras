@@ -61,7 +61,7 @@
     },
     {
       "code": 1,
-      "name": "Ristretto (only JOE)",
+      "name": "Ristretto (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 3,
@@ -79,7 +79,7 @@
     },
     {
       "code": 40,
-      "name": "Cafe Barista (only JOE)",
+      "name": "Cafe Barista (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 2,
@@ -103,7 +103,7 @@
     },
     {
       "code": 41,
-      "name": "Barista Lungo (only JOE)",
+      "name": "Barista Lungo (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 2,
@@ -127,7 +127,7 @@
     },
     {
       "code": 48,
-      "name": "Espresso Doppio (only JOE)",
+      "name": "Espresso Doppio (remote only)",
       "kind": "COFFEE",
       "strength": {
         "default": 2,
@@ -145,7 +145,7 @@
     },
     {
       "code": 17,
-      "name": "2 Ristretti (only JOE)",
+      "name": "2 Ristretti (remote only)",
       "kind": "COFFEE",
       "water": {
         "default": 25,
