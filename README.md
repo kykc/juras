@@ -42,8 +42,8 @@ supports, so it's usable immediately.
   machine to your WiFi network with the stock app. After that you can safely
   pair with the machine from Juras and continue from there.
 - Currently tested only on [E6](https://uk.jura.com/en/homeproducts/automatic-coffee-machines/e6-piano-black-ukc-15511)
-  coffee machine with Smart Connect v2 module. For details see [protocol description](PROTOCOL.md)
-  in theory should support other models, see `./protocol/src/commonMain/resources/catalogs` for the list
+  coffee machine with Smart Connect v2 module. For details see [protocol description](PROTOCOL.md).
+  In theory should support other models, see `./protocol/src/commonMain/resources/catalogs` for the list
 - Only one coffee machine can be paired to the app at the moment.
 
 
