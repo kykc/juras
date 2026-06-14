@@ -1,17 +1,20 @@
-# CLAUDE.md
+# AGENTS.md
 
-Context and working notes for LLM agents (and humans) working on **Juras**, an
-Android app for controlling JURA coffee machines over WiFi.
+Context and working notes for LLM agents (and humans) working on **Juras**, a
+**Compose Multiplatform** app (Android + Desktop) for controlling JURA coffee
+machines over WiFi.
 
 ---
 
 ## 1. What this project is
 
-Juras is a native Android app that talks to a **JURA coffee machine** fitted with
-a **WiFi Smart Connect v2** module, over the machine's local TCP protocol (port
-51515). The goal is a clean, modern alternative to JURA's own *J.O.E.* app:
-brew products, read maintenance status, and read product counters directly from
-the machine on the local network.
+Juras is a **Compose Multiplatform** app that talks to a **JURA coffee machine**
+fitted with a **WiFi Smart Connect v2** module, over the machine's local TCP
+protocol (port 51515). A single shared UI + logic codebase runs on **Android**
+(the `:app` shell) and **Desktop** (JVM, the `:desktopApp` shell). The goal is a
+clean, modern alternative to JURA's own *J.O.E.* app: brew products, read
+maintenance status, and read product counters directly from the machine on the
+local network.
 
 This is being built **step by step**. See [Roadmap](#7-roadmap--status) for the
 current state — do not assume features exist; check the code.
@@ -22,8 +25,9 @@ current state — do not assume features exist; check the code.
 
 | Concern | Choice |
 |---|---|
-| Language | **Kotlin** |
-| UI | **Jetpack Compose** + Material 3 |
+| Language | **Kotlin** (Kotlin Multiplatform) |
+| Targets | **Android** + **Desktop (JVM)** |
+| UI | **Compose Multiplatform** 1.8.0 + Material 3 |
 | Build | **Gradle (Kotlin DSL)** with a version catalog (`gradle/libs.versions.toml`) |
 | AGP | 8.10.1 |
 | Kotlin | 2.1.0 (Compose compiler via `org.jetbrains.kotlin.plugin.compose`) |
@@ -52,24 +56,38 @@ yours differs:
 - JDK 21: `D:\Home\Kykc\Apps\scoop\apps\temurin21-jdk\current`
 - System images available: `android-33`, `android-34-ext9`, `android-36`
 
-### From Android Studio
+### Helper scripts
 
-Open the `juras/` folder as a project, let Gradle sync, pick an emulator (any
-API ≥ 26; `android-36` matches target best), and Run.
+Common build/run tasks are wrapped in scripts at the project root, in two
+flavours — `*.sh` for *nix shells and `*.ps1` for PowerShell. Keep the two in
+sync when you add or change one:
+
+- `apk-build-signed-release` — `:app:assembleRelease` (signed; needs `keystore.properties`).
+- `apk-push-unsigned-debug` — `:app:assembleDebug` then `adb install` to a device.
+- `desktop-build-release` — `:desktopApp:createReleaseDistributable`.
+- `desktop-run-debug` — `:desktopApp:run`.
+
+### From Android Studio / IntelliJ IDEA
+
+Open the project root folder as a Gradle project and let it sync. For Android,
+pick an emulator (any API ≥ 26; `android-36` matches target best) and Run the
+`:app` configuration. For Desktop, run the `:desktopApp` Gradle task.
 
 ### From the command line
 
 The Gradle **wrapper** is committed, so no system Gradle is needed — but
-`JAVA_HOME` must point at a JDK 21 (the bundled wrapper uses it). On PowerShell:
+`JAVA_HOME` must point at a JDK (the bundled wrapper uses it; JDK 11+, the dev
+machine uses 21). On PowerShell:
 
 ```powershell
 $env:JAVA_HOME = "D:\Home\Kykc\Apps\scoop\apps\temurin21-jdk\current"
-cd juras
-.\gradlew.bat :app:assembleDebug      # build debug APK
-.\gradlew.bat :app:installDebug       # install on a running emulator/device
+.\gradlew.bat :app:assembleDebug          # build Android debug APK
+.\gradlew.bat :app:installDebug           # install on a running emulator/device
+.\gradlew.bat :desktopApp:run             # build + run the desktop app
 ```
 
-Debug APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+Debug APK output: `app/build/outputs/apk/debug/app-debug.apk`. The desktop app
+needs no Android SDK; the Android targets do (`local.properties` / `ANDROID_HOME`).
 
 ### Release build (signed, for sideloading to household phones)
 
@@ -96,32 +114,57 @@ may be flagged by **Play Protect** ("Install anyway"), which is separate from th
 
 ## 4. Project layout
 
+Four Gradle modules (`settings.gradle.kts` includes `:app`, `:protocol`,
+`:shared`, `:desktopApp`):
+
 ```
-juras/
-├── settings.gradle.kts            # root project + module includes, repositories
+.
+├── settings.gradle.kts            # root project "Juras" + module includes, repositories
 ├── build.gradle.kts               # top-level plugin declarations (apply false)
 ├── gradle.properties              # JVM args, AndroidX, config cache, etc.
 ├── gradle/
 │   ├── libs.versions.toml         # version catalog — single source of versions
-│   └── wrapper/                    # committed Gradle wrapper (8.13)
-├── local.properties               # sdk.dir — NOT committed
-└── app/
-    ├── build.gradle.kts           # module config + dependencies
-    ├── proguard-rules.pro
-    └── src/main/
-        ├── AndroidManifest.xml
-        ├── java/automatl/juras/
-        │   ├── MainActivity.kt    # entry point (currently a Compose stub)
-        │   └── ui/theme/          # Color.kt, Type.kt, Theme.kt (Material 3)
-        └── res/
-            ├── drawable/          # vector launcher foreground
-            ├── mipmap-anydpi-v26/ # adaptive launcher icons (no PNGs; minSdk 26)
-            └── values/            # strings, colors, themes
+│   └── wrapper/                   # committed Gradle wrapper (8.13)
+├── apk-*.{sh,ps1}, desktop-*.{sh,ps1}  # build/run helper scripts (see §3)
+├── local.properties               # sdk.dir — NOT committed (Android only)
+│
+├── protocol/                      # KMP library — pure Kotlin, NO Android/UI deps
+│   └── src/
+│       ├── commonMain/kotlin/automatl/juras/protocol/
+│       │   ├── client/            # JuraClient (auth, brew, reads)
+│       │   ├── transport/         # JuraConnection, UDP status client, cipher, framing
+│       │   ├── discovery/         # JuraDiscovery (UDP broadcast scan)
+│       │   └── product/           # Ef1030Catalog, TpPayload, Temperature
+│       ├── commonMain/resources/catalogs/   # per-model machine catalogs
+│       ├── androidMain/ + jvmMain/          # platform actuals
+│       └── jvmTest/kotlin/        # JVM unit tests (cipher vectors, payloads)
+│
+├── shared/                        # KMP + Compose Multiplatform — the real app
+│   └── src/
+│       ├── commonMain/kotlin/automatl/juras/
+│       │   ├── domain/            # AppState, AppStateStore, ConfigTransfer, Routes
+│       │   └── ui/                # AppViewModel, JurasApp, screens/, theme/, platform/ (expect)
+│       ├── commonMain/composeResources/     # CMP drawables (ic_coffee, …)
+│       └── androidMain/ + jvmMain/          # platform actuals (FilePicker, DeviceName, theme, …)
+│
+├── app/                           # thin ANDROID shell
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/automatl/juras/
+│       │   ├── MainActivity.kt    # creates AppStateRepository, calls JurasApp(store=…)
+│       │   └── data/              # AppStateRepository (DataStore-backed AppStateStore)
+│       └── res/                   # launcher icons, strings, themes
+│
+└── desktopApp/                    # thin DESKTOP (JVM) shell
+    └── src/jvmMain/kotlin/automatl/juras/
+        ├── Main.kt                # Compose `application { Window(...) }`; calls JurasApp(store=…)
+        └── data/                  # FileAppStateStore (JSON file in OS config dir)
 ```
 
-When the networking/protocol layer is added, keep it separate from UI — e.g. a
-`automatl.juras.jura` package for transport/cipher/commands, with Compose UI
-consuming it via a ViewModel.
+The protocol/transport layer lives in `:protocol` and is kept free of Android and
+UI dependencies so it stays JVM-unit-testable and reusable. All UI + app logic is
+in `:shared`; `:app` and `:desktopApp` are minimal platform entry points that just
+supply an `AppStateStore` implementation. See §7 for how this structure was reached.
 
 ---
 
@@ -344,8 +387,10 @@ support a new model, parse its XML rather than hardcoding.
 
 ## 6. Conventions & guidance for agents
 
-- **Match the surrounding style.** This is a standard Android Studio Compose
-  project layout; keep it idiomatic.
+- **Match the surrounding style.** This is a Kotlin/Compose Multiplatform project;
+  keep it idiomatic. Put shared UI/logic in `:shared/commonMain` and only
+  platform-specific code in `androidMain`/`jvmMain` (via `expect`/`actual`); keep
+  the `:app` and `:desktopApp` shells thin.
 - **Versions live in the catalog** (`gradle/libs.versions.toml`). Don't hardcode
   dependency versions in `app/build.gradle.kts`.
 - **Don't commit secrets.** `local.properties`, keystores, and `jura_creds.txt`
