@@ -1,6 +1,6 @@
 # Juras
 
-An FOSS app for controlling **JURA coffee machines** over your local Wi-Fi
+A FOSS app for controlling **JURA coffee machines** over your local Wi-Fi
 network.
 
 Juras talks directly to a JURA machine fitted with a **WiFi Smart Connect v2**
@@ -11,7 +11,7 @@ Differences with official app:
 * Doesn't need *any* additional permissions like Location, Bluetooth, etc.
 * You can export/import settings in a readable text format
 * App can be compiled not only to run on Android, but also on any desktop environment
-* In opinion of its author this app has way more clear and less convoluted UX
+* In the opinion of its author this app has way more clear and less convoluted UX
 
 ## Features
 
@@ -69,7 +69,7 @@ Dependencies
 * JDK 11 (`java` in `${PATH}`)
 * Android SDK available at `${ANDROID_HOME}` (Desktop app can be built without it)
 
-After that this project builts just like any other `gradle` project. You can see examples of the various build tasks in `./apk-*` and `./desktop-*` scripts.
+After that this project builds just like any other `gradle` project. You can see examples of the various build tasks in `./apk-*` and `./desktop-*` scripts.
 
 ### Release build (signed for sideloading to Android)
 
