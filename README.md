@@ -1,18 +1,17 @@
 # Juras
 
-An Android app for controlling **JURA coffee machines** over your local Wi-Fi
-network — a clean, modern alternative to JURA's official *J.O.E.* app.
+An FOSS app for controlling **JURA coffee machines** over your local Wi-Fi
+network.
 
 Juras talks directly to a JURA machine fitted with a **WiFi Smart Connect v2**
-module using its local TCP protocol, so discovery, pairing, brewing, and status
-checks all happen on your own network with **no cloud account required**.
+module.
 
-> **Status: v0.1 — feature complete.** Discovery, pairing, brewing, presets, and
-> status reads all work and are verified on real hardware (a **JURA E6 / EF1030M**
-> with a TT237W Smart Connect module). The underlying protocol is shared across
-> all J.O.E.-supported machines, so other models can be added over time.
+Differences with official app:
 
----
+* Doesn't need *any* additional permissions like Location, Bluetooth, etc.
+* You can export/import settings in a readable text format
+* App can be compiled not only to run on Android, but also on any desktop environment
+* In opinion of its author this app has way more clear and less convoluted UX
 
 ## Features
 
@@ -30,14 +29,17 @@ checks all happen on your own network with **no cloud account required**.
 - 📊 **Status** — per-product brew counters, maintenance status (cleaning / filter
   / descaling), maintenance cycle counters, and live machine flags (e.g. "Fill
   water tank", "Coffee ready").
-- 🔁 **Import / export** your configuration (paired machine + presets) as a
+- 🔁 **Import / Export** your configuration (paired machine + presets) as a
   human-readable **YAML** file — move your whole setup to another phone. Imports
   are validated and replace the current config after a confirmation.
 
 On first pairing the preset list is **seeded with every product** the machine
 supports, so it's usable immediately.
 
----
+## Limitations
+
+Initiation flow is currently unimplemented - you will need to connect your coffee machine to your WiFi network with the stock app. After that you can safely
+pair with the machine from Juras and continue from there.
 
 ## Requirements
 
@@ -49,8 +51,6 @@ supports, so it's usable immediately.
 > Note: machine discovery uses UDP broadcast, which doesn't traverse an Android
 > emulator's NAT — test discovery on a real device. The "Advanced" manual pairing
 > works anywhere.
-
----
 
 ## Using the app
 
@@ -64,21 +64,14 @@ supports, so it's usable immediately.
 
 ## Building from source
 
-You'll need **Android Studio** (recent stable), a **JDK 21**, and the **Android
-SDK** (Android Studio installs it). The Gradle wrapper is included.
+Dependencies
 
-### Debug build (for development / emulator)
+* JDK 11 (`java` in `${PATH}`)
+* Android SDK available at `${ANDROID_HOME}` (Desktop app can be built without it)
 
-```bash
-# Point JAVA_HOME at a JDK 21 first.
-./gradlew :app:assembleDebug     # -> app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:installDebug      # install on a running emulator/device
-./gradlew :protocol:test         # run the protocol unit tests
-```
+After that this project builts just like any other `gradle` project. You can see examples of the various build tasks in `./apk-*` and `./desktop-*` scripts.
 
-Or just open the project in Android Studio, sync, pick a device (API ≥ 26), Run.
-
-### Release build (signed, for sideloading to your phones)
+### Release build (signed for sideloading to Android)
 
 To install on real phones and be able to update them later, build a **release APK
 signed with your own keystore**. This is a one-time setup.
@@ -108,19 +101,6 @@ signed with your own keystore**. This is a one-time setup.
    When `keystore.properties` is present, the release build is signed
    automatically; otherwise it builds unsigned.
 
-### Installing the APK on a phone
-
-Copy `app-release.apk` to the phone (USB, cloud drive, etc.) and open it. Allow
-**"install unknown apps"** for whatever app opens it. If Android shows **"Blocked
-by Play Protect"**, tap **More details → Install anyway** — that's separate from
-the unknown-sources permission and is the usual reason a sideload appears to fail.
-
-To ship an **update**, bump `versionCode` (and `versionName`) in
-`app/build.gradle.kts`, rebuild the release APK, and install it over the existing
-one (same keystore = installs in place, keeping presets and pairing).
-
----
-
 ## Tech stack
 
 - **Kotlin** + **Jetpack Compose** (Material 3), single-Activity **Navigation
@@ -132,49 +112,7 @@ one (same keystore = installs in place, keeping presets and pairing).
   JVM-unit-tested) and the **`:app`** UI.
 - minSdk 26 · target/compileSdk 36.
 
-## Project structure
-
-```
-app/                                  Android app (Compose UI)
-  src/main/java/automatl/juras/
-    ui/        screens, view models, navigation
-    data/      DataStore persistence (AppStateRepository)
-    domain/    persisted models (PairedDevice, BrewPreset)
-protocol/                             Pure-Kotlin JURA protocol library
-  src/main/kotlin/automatl/juras/protocol/
-    JuraCipher / JuraFrame            nibble cipher + wire framing
-    transport/  JuraConnection        single TCP session
-    discovery/  JuraDiscovery         UDP machine discovery
-    client/     JuraClient            auth, reads, brewing, progress decoding
-    product/    Ef1030Catalog         per-model product definitions
-  src/test/                           JVM unit tests (cipher vectors, @TP payload, …)
-gradle/libs.versions.toml             Dependency versions (version catalog)
-```
-
-For deep technical and reverse-engineered **protocol** notes (cipher, framing,
-auth/pairing, command reference, brew state codes), see [`CLAUDE.md`](CLAUDE.md).
-
----
-
-## Roadmap
-
-v0.1 is feature complete:
-
-- [x] Project skeleton, build, and documentation
-- [x] Protocol core — cipher & framing (unit-tested against the reference client)
-- [x] Transport, authentication, and machine discovery
-- [x] Status reads — product counters, maintenance, machine flags
-- [x] App scaffolding — navigation, persistence, preset model
-- [x] Pairing (guided discovery + on-machine confirmation, and manual fallback)
-- [x] Preset editor (add / edit / delete / reorder) + one-time quick brew
-- [x] Brewing with live progress
-- [x] Signed release builds for sideloading
-
-Possible future work: support for additional machine models (parse the machine's
-definition XML at runtime instead of the bundled EF1030 catalogue), home-screen
-widgets, and richer maintenance flows (cleaning / descaling guidance).
-
----
+## Protocol
 
 ## Disclaimer
 
