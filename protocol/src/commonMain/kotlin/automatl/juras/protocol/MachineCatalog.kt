@@ -1,6 +1,5 @@
 package automatl.juras.protocol
 
-import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.product.Product
 
 /**
@@ -28,19 +27,27 @@ data class MachineCatalog(
         @Volatile private var registry: Map<String, MachineCatalog> = emptyMap()
 
         /**
-         * Register a catalog loaded from a JSON file. Overwrites any previous entry
-         * for the same [MachineCatalog.modelId]. Called by `CatalogLoader` at startup.
+         * Register a catalog, overwriting any previous entry for the same [MachineCatalog.modelId].
+         * Primarily used by [forModel]'s lazy-load path; also available for external callers
+         * (e.g. tests that inject a custom catalog).
          */
         fun register(catalog: MachineCatalog) {
             registry = registry + (catalog.modelId to catalog)
         }
 
         /**
-         * Returns the catalog for [modelId] from the runtime registry, falling back to
-         * the hardcoded [Ef1030Catalog] for EF1030 (or as a last-resort default for any
-         * unknown model before JSON files have loaded).
+         * Returns the catalog for [modelId], loading it on first call from the bundled
+         * `catalogs/<modelId>.json` classpath resource and caching the result.
+         *
+         * @throws IllegalArgumentException if no catalog is registered and no JSON file exists.
          */
-        fun forModel(modelId: String): MachineCatalog =
-            registry[modelId] ?: if (modelId == "EF1030") Ef1030Catalog else registry["EF1030"] ?: Ef1030Catalog
+        fun forModel(modelId: String): MachineCatalog {
+            registry[modelId]?.let { return it }
+            val json = loadCatalogJson(modelId)
+                ?: throw IllegalArgumentException("No catalog found for model: $modelId")
+            val catalog = fromJson(json)
+            register(catalog)
+            return catalog
+        }
     }
 }

@@ -1,6 +1,5 @@
 package automatl.juras.protocol
 
-import automatl.juras.protocol.product.Ef1030Catalog
 import automatl.juras.protocol.product.ProductKind
 import automatl.juras.protocol.Temperature
 import org.junit.Assert.assertEquals
@@ -107,13 +106,15 @@ class CatalogJsonTest {
         assertEquals("TEST01", MachineCatalog.fromJson(withExtra).modelId)
     }
 
-    /** Spot-checks that Ef1030Catalog and the JSON agree on key data points. */
+    /** Verifies the EF1030.json classpath resource loads and contains known hardware-verified values. */
     @Test
-    fun ef1030HardcodedMatchesKnownValues() {
-        assertEquals("Coffee ready", Ef1030Catalog.alertBits[13])
-        assertEquals("Fill water", Ef1030Catalog.alertBits[1])
-        assertEquals("Heating up", Ef1030Catalog.brewStateNames[0x21])
-        assertEquals("Enjoy", Ef1030Catalog.brewStateNames[0x3E])
-        assertEquals(setOf(0x34, 0x37, 0x3C, 0x41), Ef1030Catalog.dispensingStates)
+    fun ef1030LoadsFromJson() {
+        val catalog = MachineCatalog.forModel("EF1030")
+        assertEquals("EF1030", catalog.modelId)
+        assertEquals("Coffee ready", catalog.alertBits[13])
+        assertEquals("Fill water", catalog.alertBits[1])
+        assertEquals("Heating up", catalog.brewStateNames[0x21])
+        assertEquals("Enjoy", catalog.brewStateNames[0x3E])
+        assertEquals(setOf(0x34, 0x37, 0x3C, 0x41), catalog.dispensingStates)
     }
 }

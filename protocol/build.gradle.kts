@@ -18,6 +18,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    sourceSets {
+        named("main") {
+            // commonMain/resources aren't picked up by AGP automatically in KMP library
+            // modules — add them explicitly so getResourceAsStream works on Android.
+            resources.srcDirs("src/commonMain/resources")
+        }
+    }
 }
 
 kotlin {

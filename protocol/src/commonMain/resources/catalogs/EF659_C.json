@@ -1,0 +1,632 @@
+{
+  "modelId": "EF659_C",
+  "products": [
+    {
+      "code": 1,
+      "name": "Ristretto",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 25,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 2,
+      "name": "Espresso",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 3,
+      "name": "Coffee",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 4,
+      "name": "Cappuccino",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 60,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 14,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 5,
+      "name": "Milkcoffee",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 6,
+      "name": "Espresso Macchiato",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 35,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 10,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 7,
+      "name": "Latte Macchiato",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 16,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 17,
+      "name": "2 Ristretti",
+      "kind": "COFFEE",
+      "water": {
+        "default": 25,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 18,
+      "name": "2 Espressi",
+      "kind": "COFFEE",
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 19,
+      "name": "2 Coffee",
+      "kind": "COFFEE",
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 20,
+      "name": " 2 Cappuccini",
+      "kind": "COFFEE_MILK",
+      "water": {
+        "default": 60,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 14,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 21,
+      "name": " 2 Milkcoffee",
+      "kind": "COFFEE_MILK",
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 22,
+      "name": "2 Espresso Macchiato",
+      "kind": "COFFEE_MILK",
+      "water": {
+        "default": 35,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 10,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 23,
+      "name": "2 Latte Macchiati",
+      "kind": "COFFEE_MILK",
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 16,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 8,
+      "name": "Milk Foam",
+      "kind": "MILK",
+      "milk": {
+        "default": 10,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      }
+    },
+    {
+      "code": 10,
+      "name": "Milk Portion",
+      "kind": "MILK",
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      }
+    },
+    {
+      "code": 12,
+      "name": "Pot",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 120,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 13,
+      "name": "Hotwater Portion",
+      "kind": "WATER",
+      "water": {
+        "default": 220,
+        "min": 25,
+        "max": 450,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 24,
+      "name": "2 Milk Foam",
+      "kind": "MILK",
+      "milk": {
+        "default": 10,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      }
+    },
+    {
+      "code": 26,
+      "name": "2 Milk Portion",
+      "kind": "MILK",
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      }
+    },
+    {
+      "code": 50,
+      "name": "Espresso Big",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 51,
+      "name": "Coffee Big",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 52,
+      "name": "Cappuccino Big",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 60,
+        "min": 25,
+        "max": 240,
+        "step": 5
+      },
+      "milk": {
+        "default": 20,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 53,
+      "name": "Milkcoffee Big",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 100,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "LOW"
+    },
+    {
+      "code": 55,
+      "name": "Latte Macchiato Big",
+      "kind": "COFFEE_MILK",
+      "strength": {
+        "default": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 45,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "milk": {
+        "default": 16,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      "defaultTemperature": "HIGH"
+    },
+    {
+      "code": 58,
+      "name": "Milk Big",
+      "kind": "MILK",
+      "milk": {
+        "default": 0,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      }
+    },
+    {
+      "code": 12,
+      "name": "Pot Big",
+      "kind": "COFFEE",
+      "strength": {
+        "default": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "water": {
+        "default": 120,
+        "min": 25,
+        "max": 290,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    },
+    {
+      "code": 61,
+      "name": "Hotwater Portion Big",
+      "kind": "WATER",
+      "water": {
+        "default": 220,
+        "min": 25,
+        "max": 450,
+        "step": 5
+      },
+      "defaultTemperature": "NORMAL"
+    }
+  ],
+  "alertBits": {
+    "0": "Insert tray",
+    "1": "Fill water",
+    "2": "Empty grounds",
+    "3": "Empty tray",
+    "4": "Insert coffee bin",
+    "5": "Outlet missing",
+    "6": "Rear cover missing",
+    "7": "Milk alert",
+    "8": "Fill system",
+    "9": "System filling",
+    "10": "No beans",
+    "11": "Welcome",
+    "12": "Heating up",
+    "13": "Coffee ready",
+    "14": "No milk (milk sensor)",
+    "15": "Error milk (milk sensor)",
+    "16": "No signal (milk sensor)",
+    "17": "Please wait",
+    "18": "Coffee rinsing",
+    "19": "Ventilation closed",
+    "20": "Close powder cover",
+    "21": "Fill powder",
+    "22": "System emptying",
+    "23": "Not enough powder",
+    "24": "Remove water tank",
+    "25": "Press rinse",
+    "26": "Goodbye",
+    "27": "Periphery alert",
+    "28": "Powder product",
+    "29": "Program-mode status",
+    "30": "Error status",
+    "31": "Enjoy product",
+    "32": "Filter alert",
+    "33": "Decalc alert",
+    "34": "Cleaning alert",
+    "35": "Cappu rinse alert",
+    "36": "Energy safe",
+    "37": "Active RF filter",
+    "38": "RemoteScreen",
+    "39": "LockedKeys",
+    "40": "Close tab",
+    "41": "Cappu clean alert",
+    "42": "Info - cappu clean alert",
+    "43": "Info - coffee clean alert",
+    "44": "Info - decalc alert",
+    "45": "Info - filter used up alert",
+    "46": "Steam ready",
+    "47": "SwitchOff Delay active"
+  },
+  "brewStateNames": {
+    "0x3E": "Enjoy",
+    "0x01": "Insert Tray",
+    "0x02": "Fill watertank",
+    "0x03": "Empty grounds",
+    "0x04": "Empty tray",
+    "0x08": "Insert grounds box",
+    "0x09": "Close nozzle cover",
+    "0x0A": "Close bean cover",
+    "0x0B": "Cappurinse finished",
+    "0x0C": "Close tap",
+    "0x0D": "Open tap",
+    "0x0E": "Alert",
+    "0x0F": "Close powder cover",
+    "0x10": "Add powder coffee",
+    "0x11": "Filling process",
+    "0x12": "System emptying",
+    "0x13": "Add beans",
+    "0x14": "Not enough powder",
+    "0x15": "Waiting",
+    "0x16": "Remove watertank",
+    "0x20": "Startup",
+    "0x21": "Heating Up",
+    "0x22": "Press Rotary",
+    "0x23": "Rinse process",
+    "0x24": "Coffee Ready",
+    "0x25": "Shut down",
+    "0x26": "Press Rinse",
+    "0x2D": "No milk",
+    "0x2E": "Error milk",
+    "0x2F": "No signal milk",
+    "0x4A": "Cappu Clean request",
+    "0x50": "Decalcify Start",
+    "0x51": "Decalcify materials",
+    "0x52": "Decalcify empty tray",
+    "0x53": "Decalcify add fluid",
+    "0x54": "Decalcify Process",
+    "0x55": "Rinse watertank",
+    "0x56": "Descale finished",
+    "0x5A": "Connect the milk tube",
+    "0x5C": "RF-ID Filter used up",
+    "0x5D": "RF-ID Filter locked",
+    "0x60": "Filter Rinse start",
+    "0x61": "Filter Rinse materials",
+    "0x62": "Filter Rinse change",
+    "0x63": "Filter Rinse process",
+    "0x65": "Filter Rinse finished",
+    "0x66": "Remove Filter",
+    "0x67": "Filter Rinse insert",
+    "0x70": "Cleaning Start",
+    "0x71": "Cleaning materials",
+    "0x72": "Cleaning empty tray",
+    "0x73": "Cleaning Press Rotary",
+    "0x74": "Cleaning Process",
+    "0x75": "Cleaning add tablet",
+    "0x76": "Cleaning Process finished",
+    "0x90": "Cappu Clean Start",
+    "0x91": "Cappu Clean materials",
+    "0x92": "Cappu Clean add cleaner",
+    "0x93": "Cappu Clean process",
+    "0x94": "Cappu Clean add water",
+    "0x95": "Cappu Clean finish",
+    "0x9A": "Cappu Rinse process",
+    "0xA1": "Set Hotwater Nozzle",
+    "0xA2": "Set Milk Nozzle",
+    "0xA3": "Set Nozzle to Milk Position",
+    "0xA4": "Set Nozzle to Foam Position",
+    "0xC7": "Longpress Saved",
+    "0xC9": "Enough Milk/Water/Coffee",
+    "0xE1": "Warning",
+    "0xE2": "Action",
+    "0xE3": "Info",
+    "0xE4": "Filter error",
+    "0xE5": "Filter thanks",
+    "0xE6": "Too Hot",
+    "0xFF": "P_Mode"
+  },
+  "dispensingStates": [
+    "0x34",
+    "0x37",
+    "0x3C",
+    "0x41"
+  ],
+  "maintenanceStatusFields": [
+    "Cleaning",
+    "Filter change",
+    "Descaling"
+  ],
+  "maintenanceCounterFields": [
+    "Cleaning",
+    "Filter change",
+    "Descaling",
+    "Cappu rinse",
+    "Coffee rinse",
+    "Cappu clean"
+  ]
+}
