@@ -1,5 +1,7 @@
 # Juras
 
+![logo](Juras.png)
+
 A FOSS app for controlling **JURA coffee machines** over your local Wi-Fi
 network.
 
@@ -12,6 +14,23 @@ Differences with official app:
 * You can export/import settings in a readable text format
 * App can be compiled not only to run on Android, but also on any desktop environment
 * In the opinion of its author this app has way more clear and less convoluted UX
+
+## Origins and motivation
+
+This project is a result of me pursuing several goals:
+
+* To have a cup of coffee on my terms 
+* Stock J.O.E. app experience is, well, not that smooth
+* No FOSS solution for the Wi-Fi protocol (BLE Smart Connect implementation [exists](https://github.com/AlexxIT/Jura))
+* I was interested if I would be able to reach MVP without touching a *single line of code* as a programmer
+
+So, I performed duties of:
+
+* Product Owner
+* Tester
+* Expert in reverse engineering
+
+Actual code was produced by LLM in its entirety, from *A* to *Z*.
 
 ## Features
 
