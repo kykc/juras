@@ -1,5 +1,6 @@
 package automatl.juras
 
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.DpSize
@@ -41,18 +42,19 @@ private fun loadWindowState(): WindowState {
     return WindowState(position = position, size = DpSize(g.width.dp, g.height.dp))
 }
 
-private fun saveWindowState(state: WindowState) {
-    val pos = state.position
+// Read geometry from the AWT window directly — CMP doesn't reliably sync size/position
+// back into WindowState, so reading from the native window is the ground truth.
+private fun saveGeometry(awtWindow: java.awt.Window) {
     val g = WindowGeometry(
-        x = (pos as? WindowPosition.Absolute)?.x?.value,
-        y = (pos as? WindowPosition.Absolute)?.y?.value,
-        width = state.size.width.value,
-        height = state.size.height.value,
+        x = awtWindow.x.toFloat(),
+        y = awtWindow.y.toFloat(),
+        width = awtWindow.width.toFloat(),
+        height = awtWindow.height.toFloat(),
     )
     runCatching {
         geometryFile.parentFile?.mkdirs()
         geometryFile.writeText(geometryJson.encodeToString(g))
-    }
+    }.onFailure { it.printStackTrace() }
 }
 
 fun main() {
@@ -62,17 +64,25 @@ fun main() {
 
     val store = FileAppStateStore()
     val windowState = loadWindowState()
+    val capturedWindow = java.util.concurrent.atomic.AtomicReference<java.awt.Window?>(null)
+
+    // Cmd+Q / app-menu Quit on macOS sends applicationShouldTerminate, which does NOT
+    // fire onCloseRequest. A shutdown hook covers all exit paths.
+    Runtime.getRuntime().addShutdownHook(Thread {
+        capturedWindow.get()?.let { saveGeometry(it) }
+    })
 
     application {
         Window(
             onCloseRequest = {
-                saveWindowState(windowState)
+                capturedWindow.get()?.let { saveGeometry(it) }
                 exitApplication()
             },
             title = "Juras",
             icon = BitmapPainter(awtIcon.toComposeImageBitmap()),
             state = windowState,
         ) {
+            SideEffect { capturedWindow.set(window) }
             JurasApp(store = store)
         }
     }
