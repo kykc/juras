@@ -38,7 +38,8 @@ supports, so it's usable immediately.
 
 ## Limitations
 
-Initiation flow is currently unimplemented - you will need to connect your coffee machine to your WiFi network with the stock app. After that you can safely
+Initiation flow is currently unimplemented - you will need to connect your coffee 
+machine to your WiFi network with the stock app. After that you can safely
 pair with the machine from Juras and continue from there.
 
 ## Requirements
@@ -69,7 +70,8 @@ Dependencies
 * JDK 11 (`java` in `${PATH}`)
 * Android SDK available at `${ANDROID_HOME}` (Desktop app can be built without it)
 
-After that this project builds just like any other `gradle` project. You can see examples of the various build tasks in `./apk-*` and `./desktop-*` scripts.
+After that this project builds just like any other `gradle` project. You can see 
+examples of the various build tasks in `./apk-*` and `./desktop-*` scripts.
 
 ### Release build (signed for sideloading to Android)
 
@@ -113,6 +115,13 @@ signed with your own keystore**. This is a one-time setup.
 - minSdk 26 · target/compileSdk 36.
 
 ## Protocol
+
+Protocol is implemented as a separate module located in `./protocol` which has its own
+UTs and (hopefully) doesn't have any dependencies on Android/KMP in order to be more 
+self-contained and reusable.
+
+See [PROTOCOL.md](PROTOCOL.md) for a full protocol reference (transport, cipher, auth,
+commands, and machine catalog format).
 
 ## Disclaimer
 
