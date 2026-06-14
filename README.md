@@ -38,9 +38,14 @@ supports, so it's usable immediately.
 
 ## Limitations
 
-Initiation flow is currently unimplemented - you will need to connect your coffee 
-machine to your WiFi network with the stock app. After that you can safely
-pair with the machine from Juras and continue from there.
+- Initiation flow is currently unimplemented - you will need to connect your coffee 
+  machine to your WiFi network with the stock app. After that you can safely
+  pair with the machine from Juras and continue from there.
+- Currently tested only on [E6](https://uk.jura.com/en/homeproducts/automatic-coffee-machines/e6-piano-black-ukc-15511)
+  coffee machine with Smart Connect v2 module. For details see [protocol description](PROTOCOL.md)
+  in theory should support other models, see `./protocol/src/commonMain/resources/catalogs` for the list
+- Only one coffee machine can be paired to the app at the moment.
+
 
 ## Requirements
 
