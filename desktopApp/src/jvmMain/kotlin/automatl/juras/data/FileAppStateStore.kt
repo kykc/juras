@@ -72,5 +72,8 @@ class FileAppStateStore : AppStateStore {
 
     override suspend fun setDarkModePreference(pref: DarkModePreference) =
         update { it.copy(darkModePreference = pref) }
+
+    override suspend fun setLeftHandedMode(enabled: Boolean) =
+        update { it.copy(leftHandedMode = enabled) }
 }
 

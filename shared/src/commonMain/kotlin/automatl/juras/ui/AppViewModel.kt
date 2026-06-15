@@ -74,4 +74,8 @@ class AppViewModel(private val store: AppStateStore) : ViewModel() {
     fun setDarkModePreference(pref: DarkModePreference) {
         viewModelScope.launch { store.setDarkModePreference(pref) }
     }
+
+    fun setLeftHandedMode(enabled: Boolean) {
+        viewModelScope.launch { store.setLeftHandedMode(enabled) }
+    }
 }

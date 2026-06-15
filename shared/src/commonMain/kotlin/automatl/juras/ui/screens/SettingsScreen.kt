@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,6 +38,8 @@ fun SettingsScreen(
     device: PairedDevice?,
     darkModePreference: DarkModePreference,
     onDarkModePreferenceChange: (DarkModePreference) -> Unit,
+    leftHandedMode: Boolean,
+    onLeftHandedModeChange: (Boolean) -> Unit,
     onEditConnection: () -> Unit,
     onUnpair: () -> Unit,
     onRename: (String) -> Unit,
@@ -157,6 +160,14 @@ fun SettingsScreen(
                             label = { Text(label) },
                         )
                     }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Left-handed mode", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = leftHandedMode, onCheckedChange = onLeftHandedModeChange)
                 }
             }
         }

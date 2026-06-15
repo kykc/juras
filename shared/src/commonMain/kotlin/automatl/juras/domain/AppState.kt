@@ -14,6 +14,7 @@ data class AppState(
     val pairedDevice: PairedDevice? = null,
     val presets: List<BrewPreset> = emptyList(),
     val darkModePreference: DarkModePreference = DarkModePreference.SYSTEM,
+    val leftHandedMode: Boolean = false,
 )
 
 /**

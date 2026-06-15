@@ -121,6 +121,8 @@ fun JurasApp(store: AppStateStore) {
                     device = state.pairedDevice,
                     darkModePreference = state.darkModePreference,
                     onDarkModePreferenceChange = { appViewModel.setDarkModePreference(it) },
+                    leftHandedMode = state.leftHandedMode,
+                    onLeftHandedModeChange = { appViewModel.setLeftHandedMode(it) },
                     onEditConnection = { navController.navigate(Route.Pairing) },
                     onUnpair = {
                         appViewModel.unpair()

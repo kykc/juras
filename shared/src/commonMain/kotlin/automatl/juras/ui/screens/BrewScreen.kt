@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FabPosition
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -84,6 +86,7 @@ fun BrewScreen(
                 Icon(Icons.Filled.Add, contentDescription = "Add preset")
             }
         },
+        floatingActionButtonPosition = if (state.leftHandedMode) FabPosition.Start else FabPosition.End,
     ) { innerPadding ->
         LazyColumn(
             state = lazyListState,
@@ -100,8 +103,13 @@ fun BrewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Brew", style = MaterialTheme.typography.headlineMedium)
-                        TextButton(onClick = onQuickBrew) { Text("Quick brew") }
+                        if (state.leftHandedMode) {
+                            TextButton(onClick = onQuickBrew) { Text("Quick brew") }
+                            Text("Brew", style = MaterialTheme.typography.headlineMedium)
+                        } else {
+                            Text("Brew", style = MaterialTheme.typography.headlineMedium)
+                            TextButton(onClick = onQuickBrew) { Text("Quick brew") }
+                        }
                     }
                     val device = state.pairedDevice
                     Text(
@@ -110,6 +118,8 @@ fun BrewScreen(
                         } else {
                             "No machine paired"
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = if (state.leftHandedMode) TextAlign.End else TextAlign.Start,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -136,6 +146,7 @@ fun BrewScreen(
                         preset = preset,
                         catalog = catalog,
                         dragging = isDragging,
+                        leftHandedMode = state.leftHandedMode,
                         onEdit = { onEdit(preset) },
                         onBrew = { onBrew(preset) },
                         dragHandle = {
@@ -169,6 +180,7 @@ private fun PresetCard(
     preset: BrewPreset,
     catalog: MachineCatalog,
     dragging: Boolean,
+    leftHandedMode: Boolean,
     onEdit: () -> Unit,
     onBrew: () -> Unit,
     dragHandle: @Composable () -> Unit,
@@ -183,24 +195,40 @@ private fun PresetCard(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(
+                start = if (leftHandedMode) 12.dp else 0.dp,
+                end = if (leftHandedMode) 0.dp else 12.dp,
+                top = 8.dp,
+                bottom = 8.dp,
+            ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            dragHandle()
+            if (leftHandedMode) {
+                FilledTonalButton(onClick = onBrew) { Text("Brew") }
+            } else {
+                dragHandle()
+            }
+            val textAlign = if (leftHandedMode) TextAlign.End else TextAlign.Start
             Column(
                 modifier = Modifier.weight(1f),
+                horizontalAlignment = if (leftHandedMode) Alignment.End else Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(preset.name, style = MaterialTheme.typography.titleMedium)
+                Text(preset.name, style = MaterialTheme.typography.titleMedium, textAlign = textAlign)
                 Text(
                     product?.name ?: "Product 0x%02X".format(preset.productCode),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = textAlign,
                 )
-                Text(presetSummary(preset, catalog), style = MaterialTheme.typography.bodyMedium)
+                Text(presetSummary(preset, catalog), style = MaterialTheme.typography.bodyMedium, textAlign = textAlign)
             }
-            FilledTonalButton(onClick = onBrew) { Text("Brew") }
+            if (leftHandedMode) {
+                dragHandle()
+            } else {
+                FilledTonalButton(onClick = onBrew) { Text("Brew") }
+            }
         }
     }
 }

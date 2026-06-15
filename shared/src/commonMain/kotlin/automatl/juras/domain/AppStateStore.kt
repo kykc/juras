@@ -12,4 +12,5 @@ interface AppStateStore {
     suspend fun setPresets(presets: List<BrewPreset>)
     suspend fun replaceConfig(device: PairedDevice?, presets: List<BrewPreset>)
     suspend fun setDarkModePreference(pref: DarkModePreference)
+    suspend fun setLeftHandedMode(enabled: Boolean)
 }

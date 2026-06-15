@@ -96,4 +96,8 @@ class AppStateRepository(private val context: Context) : AppStateStore {
     override suspend fun setDarkModePreference(pref: DarkModePreference) {
         context.appStateDataStore.updateData { it.copy(darkModePreference = pref) }
     }
+
+    override suspend fun setLeftHandedMode(enabled: Boolean) {
+        context.appStateDataStore.updateData { it.copy(leftHandedMode = enabled) }
+    }
 }
