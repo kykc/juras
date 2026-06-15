@@ -74,7 +74,9 @@ supports, so it's usable immediately.
   coffee machine with Smart Connect v2 module. For details see [protocol description](PROTOCOL.md).
   In theory should support other models, see `./protocol/src/commonMain/resources/catalogs` for the list
 - Only one coffee machine can be paired to the app at the moment.
-
+- This app does not account for possibly dynamic IP of the coffee machine and the need
+  to rediscover it. Use static address or assign a hostname to it. Hostnames are supported
+  as an address for a coffee machine
 
 ## Requirements
 
