@@ -32,7 +32,7 @@ So, I performed duties of:
 * Code reviewer
 
 Actual code was produced by LLM in its entirety, from *A* to *Z*.
-That being said, this wasn't "Check Norris mode" session where I 
+That being said, this wasn't "Chuck Norris mode" session where I 
 would just answer "yes" to every proposal. I'm capable of
 reading the resulting code and I reviewed it to the best of my abilities.
 
@@ -95,7 +95,7 @@ supports, so it's usable immediately.
 
 Dependencies
 
-* JDK 11 (`java` in `${PATH}`)
+* JDK 21 (`java` in `${PATH}`)
 * Android SDK available at `${ANDROID_HOME}` (Desktop app can be built without it)
 
 After that this project builds just like any other `gradle` project. You can see 
