@@ -1,6 +1,6 @@
 # Juras
 
-![logo](Juras.png)
+![logo](Juras.png) ![coffee](coffee.avif)
 
 A FOSS app for controlling **JURA coffee machines** over your local Wi-Fi
 network.
