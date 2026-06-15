@@ -12,6 +12,7 @@ import automatl.juras.protocol.client.MachineStateDecoder
 import automatl.juras.protocol.transport.JuraConnection
 import automatl.juras.protocol.transport.JuraUdpStatusClient
 import automatl.juras.protocol.transport.UdpStatusReply
+import java.net.UnknownHostException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -104,7 +105,14 @@ class StatusViewModel : ViewModel() {
             }
             _state.value = result.fold(
                 onSuccess = { it },
-                onFailure = { ReadState.Error(it.message ?: it::class.simpleName ?: "Error") },
+                onFailure = { e ->
+                    val msg = if (e is UnknownHostException) {
+                        "Cannot resolve \"${device.host}\" — check the address and your network."
+                    } else {
+                        e.message ?: e::class.simpleName ?: "Error"
+                    }
+                    ReadState.Error(msg)
+                },
             )
         }
     }

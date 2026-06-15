@@ -10,6 +10,7 @@ import automatl.juras.protocol.client.JuraClient
 import automatl.juras.protocol.discovery.DiscoveredMachine
 import automatl.juras.protocol.discovery.JuraDiscovery
 import automatl.juras.protocol.transport.JuraConnection
+import java.net.UnknownHostException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,11 +116,17 @@ class PairingViewModel : ViewModel() {
                         )
                     }
                 },
-                onFailure = {
-                    PairingState.Failed(
-                        "No confirmation received. Confirm \"pair with this device?\" on the " +
-                            "machine within a minute or so, then try again.",
-                    )
+                onFailure = { e ->
+                    if (e is UnknownHostException) {
+                        PairingState.Failed(
+                            "Cannot resolve \"$host\" — check the address and your network.",
+                        )
+                    } else {
+                        PairingState.Failed(
+                            "No confirmation received. Confirm \"pair with this device?\" on the " +
+                                "machine within a minute or so, then try again.",
+                        )
+                    }
                 },
             )
         }

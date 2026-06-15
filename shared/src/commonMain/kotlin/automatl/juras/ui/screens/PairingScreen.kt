@@ -25,12 +25,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import java.net.InetAddress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import automatl.juras.domain.ExportedConfig
@@ -288,17 +293,30 @@ private fun AdvancedPairing(existing: PairedDevice?, onSaved: (PairedDevice) -> 
     var label by rememberSaveable { mutableStateOf(existing?.label ?: "Juras") }
     var pin by rememberSaveable { mutableStateOf(existing?.setupPin ?: "") }
     var token by rememberSaveable { mutableStateOf(existing?.token ?: "") }
+    var resolving by remember { mutableStateOf(false) }
+    var resolveError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "Enter the machine's IP and a known auth token directly.",
+            "Enter the machine's IP address or hostname and a known auth token directly.",
             style = MaterialTheme.typography.bodyMedium,
         )
+        val hostError = resolveError
         OutlinedTextField(
             value = host,
-            onValueChange = { host = it.trim() },
-            label = { Text("Machine IP address") },
+            onValueChange = {
+                host = it.trim()
+                resolveError = null
+            },
+            label = { Text("Machine IP or hostname") },
             singleLine = true,
+            isError = hostError != null,
+            supportingText = if (hostError != null) {
+                { Text(hostError) }
+            } else {
+                null
+            },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -325,19 +343,35 @@ private fun AdvancedPairing(existing: PairedDevice?, onSaved: (PairedDevice) -> 
         )
         Button(
             onClick = {
-                onSaved(
-                    PairedDevice(
-                        host = host.trim(),
-                        label = label.ifBlank { "Juras" },
-                        setupPin = pin.trim(),
-                        token = token.trim(),
-                    ),
-                )
+                resolveError = null
+                resolving = true
+                scope.launch {
+                    val trimmed = host.trim()
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { InetAddress.getByName(trimmed) }
+                    }
+                    resolving = false
+                    result.fold(
+                        onSuccess = {
+                            onSaved(
+                                PairedDevice(
+                                    host = trimmed,
+                                    label = label.ifBlank { "Juras" },
+                                    setupPin = pin.trim(),
+                                    token = token.trim(),
+                                ),
+                            )
+                        },
+                        onFailure = {
+                            resolveError = "Cannot resolve \"$trimmed\" — check the address and your network."
+                        },
+                    )
+                }
             },
-            enabled = host.isNotBlank() && token.isNotBlank(),
+            enabled = host.isNotBlank() && token.isNotBlank() && !resolving,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Save & connect")
+            Text(if (resolving) "Resolving…" else "Save & connect")
         }
     }
 }
