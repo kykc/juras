@@ -36,6 +36,10 @@ That being said, this wasn't "Chuck Norris mode" session where I
 would just answer "yes" to every proposal. I'm capable of
 reading the resulting code and I reviewed it to the best of my abilities.
 
+# Screenshots
+
+![image](screenshots.png)
+
 ## Features
 
 - 📡 **Discover** your machine on the local network (UDP broadcast — no IP typing).
