@@ -53,7 +53,7 @@ reading the resulting code and I reviewed it to the best of my abilities.
   / descaling), maintenance cycle counters, and live machine flags (e.g. "Fill
   water tank", "Coffee ready").
 - 🔁 **Import / Export** your configuration (paired machine + presets) as a
-  human-readable **YAML** file — move your whole setup to another phone. Imports
+  human-readable **YAML** file — move your whole setup to another controlling device. Imports
   are validated and replace the current config after a confirmation.
 
 On first pairing the preset list is **seeded with every product** the machine
@@ -72,9 +72,10 @@ supports, so it's usable immediately.
 
 ## Requirements
 
-- **Android 8.0 (API 26)** or newer.
+- **Android 8.0 (API 26)** or newer (mobile)
+- **Linux/Windows 10+/macOS 14+** (desktop)
 - A JURA machine with a **WiFi Smart Connect v2** module, on the **same Wi-Fi
-  network** as the phone.
+  network** as the controlling device.
 - The machine's **setup PIN** (the one configured during its initial registration).
 
 > Note: machine discovery uses UDP broadcast, which doesn't traverse an Android
