@@ -23,17 +23,40 @@ kotlin {
     }
 }
 
+// Android's R8 dead-strips unused icons from materialIconsExtended, but on desktop there is
+// no such step. All icons used in this app (Add, Settings, Info, ArrowDropDown) are in core,
+// so substitute the 36MB extended JAR with the 864KB core JAR at build time.
+configurations.all {
+    resolutionStrategy.dependencySubstitution {
+        all {
+            val req = requested
+            if (req is ModuleComponentSelector &&
+                req.group == "org.jetbrains.compose.material" &&
+                req.module == "material-icons-extended-desktop") {
+                useTarget(
+                    "org.jetbrains.compose.material:material-icons-core-desktop:${req.version}",
+                    "Replace extended icons (~36MB) with core-only (~864KB)",
+                )
+            }
+        }
+    }
+}
+
 compose.desktop {
     application {
         mainClass = "automatl.juras.MainKt"
+        jvmArgs(
+            "-Dapple.awt.application.appearance=system"
+        )
         buildTypes.release.proguard {
-            isEnabled = false
+            configurationFiles.from(project.file("proguard-rules.pro"))
         }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "Juras"
             packageVersion = "1.0.0"
             description = "JURA coffee machine controller"
+            modules("java.instrument", "jdk.unsupported")
             macOS {
                 bundleID = "automatl.juras"
                 iconFile = file("src/jvmMain/resources/Juras.icns")
