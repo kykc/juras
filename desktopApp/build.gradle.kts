@@ -54,7 +54,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "Juras"
-            packageVersion = "1.0.0"
+            packageVersion = providers.gradleProperty("juras.desktopPackageVersion").get()
             description = "JURA coffee machine controller"
             modules("java.instrument", "jdk.unsupported")
             macOS {

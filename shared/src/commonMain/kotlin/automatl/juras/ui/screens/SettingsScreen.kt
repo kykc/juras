@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import automatl.juras.domain.DarkModePreference
 import automatl.juras.domain.ExportedConfig
 import automatl.juras.domain.PairedDevice
+import automatl.juras.ui.platform.AboutInfo
+import automatl.juras.ui.platform.rememberAboutInfo
 import automatl.juras.ui.platform.rememberOpenFileLauncher
 import automatl.juras.ui.platform.rememberSaveFileLauncher
 
@@ -51,6 +53,7 @@ fun SettingsScreen(
     var renaming by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<ExportedConfig?>(null) }
     var importError by remember { mutableStateOf<String?>(null) }
+    val aboutInfo = rememberAboutInfo()
 
     val saveLauncher = rememberSaveFileLauncher(
         suggestedName = "juras-config.yaml",
@@ -171,6 +174,8 @@ fun SettingsScreen(
                 }
             }
         }
+
+        AboutCard(aboutInfo = aboutInfo)
     }
 
     if (renaming && device != null) {
@@ -214,6 +219,33 @@ fun SettingsScreen(
             text = { Text(message) },
             confirmButton = { TextButton(onClick = { importError = null }) { Text("OK") } },
         )
+    }
+}
+
+@Composable
+private fun AboutCard(aboutInfo: AboutInfo) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("About", style = MaterialTheme.typography.titleMedium)
+            AboutRow(label = "Version", value = aboutInfo.appVersion)
+            AboutRow(label = "Commit", value = aboutInfo.commit)
+            AboutRow(label = "Runtime", value = aboutInfo.runtime)
+        }
+    }
+}
+
+@Composable
+private fun AboutRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

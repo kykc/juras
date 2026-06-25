@@ -45,7 +45,7 @@ Prefer adding dependencies there (the catalog) rather than inline in
 
 ## 3. Build & run
 
-### Local dev environment (developer's machine)
+### Local dev environment Windows (developer's machine)
 
 These paths are specific to the current developer's Windows machine — adjust if
 yours differs:
@@ -55,6 +55,14 @@ yours differs:
 - Android Studio: `D:\Home\Kykc\Apps\Jetbrains\Android Studio`
 - JDK 21: `D:\Home\Kykc\Apps\scoop\apps\temurin21-jdk\current`
 - System images available: `android-33`, `android-34-ext9`, `android-36`
+
+### Local dev environment Unix-based (Linux and macOS)
+
+- Expect that nix package manager is always available
+- Prepend `nix develop ${HOME}/nixos-config#default --command` to
+  arrive in a shell where JVM is available
+- Prepend `nix develop ${HOME}/nixos-config#android --command` to 
+  arrive in a shell where JVM+Android SDK are both available
 
 ### Helper scripts
 

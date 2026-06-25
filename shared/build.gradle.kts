@@ -1,3 +1,4 @@
+import automatl.juras.gradle.GenerateBuildMetadata
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,6 +7,20 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
+}
+
+val generatedBuildMetadataDir = layout.buildDirectory.dir("generated/buildMetadata/commonMain/kotlin")
+val generateBuildMetadata = tasks.register<GenerateBuildMetadata>("generateBuildMetadata") {
+    outputDir.set(generatedBuildMetadataDir)
+    appVersion.set(providers.gradleProperty("juras.versionName"))
+    rootDirectory.set(rootProject.layout.projectDirectory)
+    outputs.upToDateWhen { false }
+}
+
+tasks.configureEach {
+    if (name.startsWith("compile") && name.contains("Kotlin")) {
+        dependsOn(generateBuildMetadata)
+    }
 }
 
 android {
@@ -52,6 +67,7 @@ kotlin {
             // Drag-to-reorder (KMP compatible v2.x)
             implementation(libs.reorderable)
         }
+        commonMain.get().kotlin.srcDir(generatedBuildMetadataDir)
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.activity.compose)
