@@ -97,10 +97,9 @@ class StatusViewModel : ViewModel() {
         if (_state.value == ReadState.Loading) return
         _state.value = ReadState.Loading
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { performRead(device) }.recoverCatching {
-                    delay(RETRY_DELAY_MS)
-                    performRead(device)
+            val result = runCatching {
+                retryTcpOperation {
+                    withContext(Dispatchers.IO) { performRead(device) }
                 }
             }
             _state.value = result.fold(
@@ -135,6 +134,5 @@ class StatusViewModel : ViewModel() {
 
     companion object {
         private const val POLL_INTERVAL_MS = 1_500L
-        private const val RETRY_DELAY_MS = 1_500L
     }
 }

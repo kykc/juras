@@ -66,18 +66,7 @@ class BrewViewModel : ViewModel() {
 
         brewJob = viewModelScope.launch {
             val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    val catalog = MachineCatalog.forModel(device.model)
-                    JuraConnection(device.host).use { conn ->
-                        conn.connect()
-                        val client = JuraClient(conn, catalog)
-                        val auth = client.authenticate(device.credentialsOrNull())
-                        check(auth is AuthResult.Authenticated) {
-                            "Authentication failed — re-pair the machine."
-                        }
-                        client.startProduct(payload)
-                    }
-                }
+                startProductWithRetry(device, payload)
                 awaitCompletion(device)
             }
             if (abandoned) return@launch
@@ -86,6 +75,27 @@ class BrewViewModel : ViewModel() {
                 onSuccess = { it },
                 onFailure = { BrewUiState.Failed(it.message ?: "Brew failed") },
             )
+        }
+    }
+
+    private suspend fun startProductWithRetry(device: PairedDevice, payload: String) {
+        retryTcpOperation(
+            shouldRetry = { it !is AuthenticationFailedException && isRetriableTcpFailure(it) },
+        ) {
+            withContext(Dispatchers.IO) { startProduct(device, payload) }
+        }
+    }
+
+    private fun startProduct(device: PairedDevice, payload: String) {
+        val catalog = MachineCatalog.forModel(device.model)
+        JuraConnection(device.host).use { conn ->
+            conn.connect()
+            val client = JuraClient(conn, catalog)
+            val auth = client.authenticate(device.credentialsOrNull())
+            if (auth !is AuthResult.Authenticated) {
+                throw AuthenticationFailedException("Authentication failed — re-pair the machine.")
+            }
+            client.startProduct(payload)
         }
     }
 
@@ -191,4 +201,6 @@ class BrewViewModel : ViewModel() {
         private const val STARTUP_TIMEOUT_MS = 15_000L
         private const val MAX_BREW_MS = 5 * 60_000L
     }
+
+    private class AuthenticationFailedException(message: String) : Exception(message)
 }
