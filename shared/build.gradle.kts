@@ -17,12 +17,6 @@ val generateBuildMetadata = tasks.register<GenerateBuildMetadata>("generateBuild
     outputs.upToDateWhen { false }
 }
 
-tasks.configureEach {
-    if (name.startsWith("compile") && name.contains("Kotlin")) {
-        dependsOn(generateBuildMetadata)
-    }
-}
-
 android {
     namespace = "automatl.juras.shared"
     compileSdk = 36
@@ -67,7 +61,7 @@ kotlin {
             // Drag-to-reorder (KMP compatible v2.x)
             implementation(libs.reorderable)
         }
-        commonMain.get().kotlin.srcDir(generatedBuildMetadataDir)
+        commonMain.get().kotlin.srcDir(generateBuildMetadata)
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.activity.compose)
